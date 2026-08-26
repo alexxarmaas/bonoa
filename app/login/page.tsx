@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MdArrowForward } from "react-icons/md";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { friendlyError } from "@/lib/errors";
 import { supabase } from "@/lib/supabase/client";
 
 export default function LoginPage() {
@@ -24,11 +25,11 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     setLoading(false);
 
     if (signInError) {
-      setError(signInError.message === "Invalid login credentials" ? "Email o contraseña incorrectos." : signInError.message);
+      setError(friendlyError(signInError, "No hemos podido iniciar sesión."));
       return;
     }
 
@@ -54,7 +55,10 @@ export default function LoginPage() {
               <input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-zinc-700 focus:border-orange-500/50" placeholder="tu@email.com" />
             </label>
             <label className="block">
-              <span className="mb-2 block text-xs font-semibold text-zinc-400">Contraseña</span>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <span className="text-xs font-semibold text-zinc-400">Contraseña</span>
+                <Link href="/forgot-password" className="text-[11px] font-bold text-orange-300 hover:text-orange-200">¿La has olvidado?</Link>
+              </div>
               <input required minLength={6} type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-zinc-700 focus:border-orange-500/50" placeholder="••••••••" />
             </label>
 
