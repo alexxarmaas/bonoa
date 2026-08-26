@@ -1,4 +1,3 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -7,8 +6,6 @@ type ProductRow = Database["public"]["Tables"]["loyalty_products"]["Row"];
 type BusinessRole = Database["public"]["Enums"]["business_role"];
 type ProductType = Database["public"]["Enums"]["loyalty_product_type"];
 type PassStatus = Database["public"]["Enums"]["pass_status"];
-
-const rpcClient = supabase as unknown as SupabaseClient;
 
 export type BusinessSummary = BusinessRow & { role: BusinessRole };
 
@@ -69,14 +66,14 @@ export async function getMyBusinesses(userId: string): Promise<BusinessSummary[]
 }
 
 export async function createBusiness(name: string, slug: string): Promise<BusinessRow> {
-  const { data, error } = await rpcClient.rpc("create_business", {
+  const { data, error } = await supabase.rpc("create_business", {
     business_name: name,
     business_slug: slug,
   });
 
   if (error) throw error;
   if (!data) throw new Error("No se pudo crear el negocio.");
-  return data as BusinessRow;
+  return data;
 }
 
 export async function getBusinessAccess(businessId: string, userId: string) {
@@ -111,6 +108,10 @@ export async function createBusinessProduct(input: {
   initialUnits: number;
   validityDays?: number | null;
 }): Promise<ProductRow> {
+  if (input.type === "uses" && !Number.isInteger(input.initialUnits)) {
+    throw new Error("Los bonos por usos necesitan un número entero de usos.");
+  }
+
   const { data, error } = await supabase
     .from("loyalty_products")
     .insert({
@@ -122,6 +123,18 @@ export async function createBusinessProduct(input: {
       validity_days: input.validityDays ?? null,
       active: true,
     })
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function setBusinessProductActive(productId: string, active: boolean): Promise<ProductRow> {
+  const { data, error } = await supabase
+    .from("loyalty_products")
+    .update({ active })
+    .eq("id", productId)
     .select("*")
     .single();
 
@@ -156,18 +169,18 @@ export async function lookupWalletPasses(
   businessId: string,
   qr: BonoaQrIdentity,
 ): Promise<ScannedWalletPass[]> {
-  const { data, error } = await rpcClient.rpc("business_wallet_passes", {
+  const { data, error } = await supabase.rpc("business_wallet_passes", {
     target_business_id: businessId,
     target_wallet_token: qr.token,
     target_qr_version: qr.version,
   });
 
   if (error) throw error;
-  return (data ?? []) as ScannedWalletPass[];
+  return (data ?? []).map((pass) => ({ ...pass, expires_at: pass.expires_at ?? null }));
 }
 
 export async function issuePass(productId: string, qr: BonoaQrIdentity) {
-  const { data, error } = await rpcClient.rpc("issue_pass", {
+  const { data, error } = await supabase.rpc("issue_pass", {
     target_product_id: productId,
     target_wallet_token: qr.token,
     target_qr_version: qr.version,
@@ -178,7 +191,7 @@ export async function issuePass(productId: string, qr: BonoaQrIdentity) {
 }
 
 export async function redeemPass(passId: string, units: number) {
-  const { data, error } = await rpcClient.rpc("redeem_pass", {
+  const { data, error } = await supabase.rpc("redeem_pass", {
     target_pass_id: passId,
     units_to_redeem: units,
     request_id: crypto.randomUUID(),
