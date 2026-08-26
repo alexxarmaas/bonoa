@@ -2,16 +2,18 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MdArrowForward, MdQrCode2, MdVerified, MdWallet } from "react-icons/md";
+import { MdArrowForward, MdQrCode2, MdRefresh, MdVerified, MdWallet } from "react-icons/md";
 import AuthGuard from "@/components/auth/AuthGuard";
 import { useAuth } from "@/components/auth/AuthProvider";
 import PassCard from "@/components/PassCard";
+import { friendlyError } from "@/lib/errors";
 import { getWalletPasses, type WalletPass } from "@/lib/wallet-data";
 
 function WalletContent() {
   const { user, profile } = useAuth();
   const [passes, setPasses] = useState<WalletPass[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -24,8 +26,8 @@ function WalletContent() {
         setPasses(data);
         setError(null);
       })
-      .catch(() => {
-        if (active) setError("No hemos podido cargar tus bonos.");
+      .catch((cause) => {
+        if (active) setError(friendlyError(cause, "No hemos podido cargar tus bonos."));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -35,6 +37,19 @@ function WalletContent() {
       active = false;
     };
   }, [user]);
+
+  const refreshWallet = async () => {
+    if (!user) return;
+    setRefreshing(true);
+    setError(null);
+    try {
+      setPasses(await getWalletPasses(user.id));
+    } catch (cause) {
+      setError(friendlyError(cause, "No hemos podido actualizar tu wallet."));
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const activePasses = passes.filter((pass) => pass.status === "active" || pass.status === "expiring_soon");
   const expiringSoon = passes.filter((pass) => pass.status === "expiring_soon").length;
@@ -75,7 +90,10 @@ function WalletContent() {
       <section id="bonos" className="mt-10">
         <div className="mb-5 flex items-end justify-between gap-4">
           <div><p className="text-[10px] font-bold uppercase tracking-[0.24em] text-orange-300">Tu wallet</p><h2 className="mt-2 text-2xl font-black tracking-tight text-white">Tus bonos</h2></div>
-          {!loading && !error ? <div className="hidden items-center gap-1.5 text-xs text-zinc-500 sm:flex"><MdVerified className="text-orange-400" size={18} /> Sincronizado con Bonoa</div> : null}
+          <div className="flex items-center gap-2">
+            {!loading && !error ? <div className="hidden items-center gap-1.5 text-xs text-zinc-500 sm:flex"><MdVerified className="text-orange-400" size={18} /> Sincronizado</div> : null}
+            <button type="button" onClick={() => void refreshWallet()} disabled={loading || refreshing} className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3.5 py-2 text-[11px] font-bold text-zinc-400 transition hover:text-white disabled:opacity-40"><MdRefresh size={16} className={refreshing ? "animate-spin" : ""} /> {refreshing ? "Actualizando…" : "Actualizar"}</button>
+          </div>
         </div>
 
         {loading ? (
@@ -88,7 +106,7 @@ function WalletContent() {
           <div className="bonoa-card rounded-[1.8rem] p-8 text-center sm:p-10">
             <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-orange-400/15 bg-orange-400/[0.07] text-orange-300"><MdWallet size={27} /></div>
             <h3 className="mt-5 text-xl font-black text-white">Tu wallet está lista</h3>
-            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-500">Todavía no tienes bonos asignados. Cuando compres o recibas uno de un establecimiento, aparecerá aquí automáticamente.</p>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-500">Todavía no tienes bonos asignados. Cuando compres o recibas uno de un establecimiento, aparecerá aquí al actualizar tu wallet.</p>
           </div>
         )}
       </section>
