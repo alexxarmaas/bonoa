@@ -18,6 +18,30 @@ const presets = [
   { label: "50 € saldo", type: "balance" as const, units: "50", days: "180" },
 ];
 
+const MAX_UNITS = 1_000_000;
+const MAX_VALIDITY_DAYS = 3650;
+const MAX_PRICE_EUR = 1_000_000;
+
+function parseOptionalPrice(value: string) {
+  if (!value.trim()) return null;
+  const euros = Number(value.replace(",", "."));
+  if (!Number.isFinite(euros) || euros < 0 || euros > MAX_PRICE_EUR) {
+    throw new Error(`El precio debe estar entre 0 y ${MAX_PRICE_EUR.toLocaleString("es-ES")} €.`);
+  }
+  const cents = euros * 100;
+  if (!Number.isInteger(cents)) throw new Error("El precio puede tener como máximo dos decimales.");
+  return cents;
+}
+
+function parseOptionalValidity(value: string) {
+  if (!value.trim()) return null;
+  const days = Number(value);
+  if (!Number.isInteger(days) || days < 1 || days > MAX_VALIDITY_DAYS) {
+    throw new Error(`La validez debe ser un número entero entre 1 y ${MAX_VALIDITY_DAYS} días.`);
+  }
+  return days;
+}
+
 function CatalogContent() {
   const { user } = useAuth();
   const params = useParams<{ id: string }>();
@@ -78,23 +102,22 @@ function CatalogContent() {
 
   const createProduct = async (event: FormEvent) => {
     event.preventDefault();
-    const initialUnits = Number(units);
-    const validityDays = validity.trim() ? Number(validity) : null;
-    const salePrice = price.trim() ? Math.round(Number(price.replace(",", ".")) * 100) : null;
-    if (!name.trim() || !Number.isFinite(initialUnits) || initialUnits <= 0 || (type === "uses" && !Number.isInteger(initialUnits))) {
-      setError("Revisa el nombre y los usos/saldo iniciales.");
-      return;
-    }
-    if (salePrice !== null && (!Number.isFinite(salePrice) || salePrice < 0)) {
-      setError("Introduce un precio válido.");
-      return;
-    }
-
-    setCreating(true);
     setError(null);
     setSuccess(null);
+
     try {
-      await createPilotProduct({ businessId, name, description, type, initialUnits, validityDays: validityDays && validityDays > 0 ? Math.round(validityDays) : null, salePriceCents: salePrice });
+      const initialUnits = Number(units);
+      if (name.trim().length < 2 || name.trim().length > 120) throw new Error("El nombre del bono debe tener entre 2 y 120 caracteres.");
+      if (description.trim().length > 500) throw new Error("La descripción del bono no puede superar 500 caracteres.");
+      if (!Number.isFinite(initialUnits) || initialUnits <= 0 || initialUnits > MAX_UNITS) throw new Error("La cantidad inicial del bono no es válida.");
+      if (type === "uses" && !Number.isInteger(initialUnits)) throw new Error("Los bonos por usos solo admiten unidades completas.");
+      if (type === "balance" && !Number.isInteger(initialUnits * 100)) throw new Error("El saldo inicial puede tener como máximo dos decimales.");
+
+      const validityDays = parseOptionalValidity(validity);
+      const salePrice = parseOptionalPrice(price);
+
+      setCreating(true);
+      await createPilotProduct({ businessId, name, description, type, initialUnits, validityDays, salePriceCents: salePrice });
       setName("");
       setDescription("");
       setPrice("");
@@ -109,22 +132,23 @@ function CatalogContent() {
 
   const saveProduct = async (product: PilotProduct) => {
     const edit = edits[product.id];
-    if (!edit) return;
-    const salePrice = edit.price.trim() ? Math.round(Number(edit.price.replace(",", ".")) * 100) : null;
-    const validityDays = edit.validity.trim() ? Number(edit.validity) : null;
-    if (salePrice !== null && (!Number.isFinite(salePrice) || salePrice < 0)) {
-      setError("El precio no es válido.");
-      return;
-    }
-    setBusyId(product.id);
+    if (!edit || busyId !== null) return;
     setError(null);
     setSuccess(null);
+
     try {
+      const salePrice = parseOptionalPrice(edit.price);
+      const validityDays = parseOptionalValidity(edit.validity);
+      setBusyId(product.id);
       const updated = await updatePilotProduct(product.id, {
         sale_price_cents: salePrice,
-        validity_days: validityDays && validityDays > 0 ? Math.round(validityDays) : null,
+        validity_days: validityDays,
       });
       setProducts((current) => current.map((item) => item.id === updated.id ? updated : item));
+      setEdits((current) => ({ ...current, [product.id]: {
+        price: updated.sale_price_cents === null ? "" : (updated.sale_price_cents / 100).toFixed(2),
+        validity: updated.validity_days?.toString() ?? "",
+      } }));
       setSuccess(`“${product.name}” actualizado.`);
     } catch (cause) {
       setError(friendlyError(cause, "No hemos podido actualizar el bono."));
@@ -134,11 +158,14 @@ function CatalogContent() {
   };
 
   const toggleProduct = async (product: PilotProduct) => {
+    if (busyId !== null) return;
     setBusyId(product.id);
     setError(null);
+    setSuccess(null);
     try {
       const updated = await updatePilotProduct(product.id, { active: !product.active });
       setProducts((current) => current.map((item) => item.id === updated.id ? updated : item));
+      setSuccess(`“${product.name}” ${updated.active ? "activado" : "desactivado"}.`);
     } catch (cause) {
       setError(friendlyError(cause, "No hemos podido cambiar el estado."));
     } finally {
@@ -164,13 +191,13 @@ function CatalogContent() {
         <div className="mt-5 flex flex-wrap gap-2">{presets.map((preset) => <button key={preset.label} type="button" onClick={() => applyPreset(preset)} className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-[10px] font-bold text-zinc-400 hover:border-orange-400/20 hover:text-orange-200">{preset.label}</button>)}</div>
 
         <form onSubmit={createProduct} className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <label className="text-xs font-bold text-zinc-400 xl:col-span-2">Nombre<input required value={name} onChange={(event) => setName(event.target.value)} placeholder="Bono 5 lavados" className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-orange-400/40" /></label>
+          <label className="text-xs font-bold text-zinc-400 xl:col-span-2">Nombre<input required minLength={2} maxLength={120} value={name} onChange={(event) => setName(event.target.value)} placeholder="Bono 5 lavados" className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-orange-400/40" /></label>
           <label className="text-xs font-bold text-zinc-400">Tipo<select value={type} onChange={(event) => setType(event.target.value as "uses" | "balance")} className="mt-2 w-full rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm text-white outline-none focus:border-orange-400/40"><option value="uses">Usos</option><option value="balance">Saldo</option></select></label>
-          <label className="text-xs font-bold text-zinc-400">{type === "uses" ? "Usos" : "Saldo inicial (€)"}<input required type="number" min={type === "uses" ? "1" : "0.01"} step={type === "uses" ? "1" : "0.01"} value={units} onChange={(event) => setUnits(event.target.value)} className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-orange-400/40" /></label>
-          <label className="text-xs font-bold text-zinc-400">Precio de venta (€)<input type="number" min="0" step="0.01" value={price} onChange={(event) => setPrice(event.target.value)} placeholder="35.00" className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-orange-400/40" /></label>
-          <label className="text-xs font-bold text-zinc-400">Validez (días)<input type="number" min="1" value={validity} onChange={(event) => setValidity(event.target.value)} placeholder="Vacío = sin caducidad" className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-orange-400/40" /></label>
-          <label className="text-xs font-bold text-zinc-400 md:col-span-2">Descripción<input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Incluye 5 lavados exteriores" className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-orange-400/40" /></label>
-          <div className="flex items-end"><button disabled={creating} className="brand-gradient inline-flex w-full items-center justify-center gap-2 rounded-full px-5 py-3 text-xs font-black text-white disabled:opacity-40"><MdAdd size={19} /> {creating ? "Creando…" : "Crear bono"}</button></div>
+          <label className="text-xs font-bold text-zinc-400">{type === "uses" ? "Usos" : "Saldo inicial (€)"}<input required type="number" min={type === "uses" ? "1" : "0.01"} max={MAX_UNITS} step={type === "uses" ? "1" : "0.01"} value={units} onChange={(event) => setUnits(event.target.value)} className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-orange-400/40" /></label>
+          <label className="text-xs font-bold text-zinc-400">Precio de venta (€)<input type="number" min="0" max={MAX_PRICE_EUR} step="0.01" value={price} onChange={(event) => setPrice(event.target.value)} placeholder="35.00" className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-orange-400/40" /></label>
+          <label className="text-xs font-bold text-zinc-400">Validez (días)<input type="number" min="1" max={MAX_VALIDITY_DAYS} step="1" value={validity} onChange={(event) => setValidity(event.target.value)} placeholder="Vacío = sin caducidad" className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-orange-400/40" /></label>
+          <label className="text-xs font-bold text-zinc-400 md:col-span-2">Descripción<input maxLength={500} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Incluye 5 lavados exteriores" className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-orange-400/40" /></label>
+          <div className="flex items-end"><button disabled={creating || busyId !== null} className="brand-gradient inline-flex w-full items-center justify-center gap-2 rounded-full px-5 py-3 text-xs font-black text-white disabled:opacity-40"><MdAdd size={19} /> {creating ? "Creando…" : "Crear bono"}</button></div>
         </form>
       </section>
 
@@ -184,9 +211,9 @@ function CatalogContent() {
                 <div className="flex flex-col gap-5 xl:flex-row xl:items-center">
                   <div className="flex min-w-0 flex-1 items-start gap-3"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-orange-400/15 bg-orange-400/[0.07] text-orange-300"><MdStyle size={21} /></div><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="font-black text-white">{product.name}</h3><span className={`rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] ${product.active ? "border-emerald-400/15 bg-emerald-400/5 text-emerald-300" : "border-white/10 text-zinc-500"}`}>{product.active ? "activo" : "inactivo"}</span></div><p className="mt-1 text-xs text-zinc-500">{product.initial_units} {product.type === "uses" ? "usos" : "€ de saldo"} · {formatMoney(product.sale_price_cents, product.currency)}</p>{product.description ? <p className="mt-1 text-[11px] text-zinc-600">{product.description}</p> : null}</div></div>
                   <div className="grid gap-3 sm:grid-cols-[9rem_8rem_auto_auto] sm:items-end">
-                    <label className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-600">Precio €<input type="number" min="0" step="0.01" value={edit.price} onChange={(event) => setEdits((current) => ({ ...current, [product.id]: { ...edit, price: event.target.value } }))} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-xs text-white outline-none" /></label>
-                    <label className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-600">Validez<input type="number" min="1" value={edit.validity} onChange={(event) => setEdits((current) => ({ ...current, [product.id]: { ...edit, validity: event.target.value } }))} placeholder="∞" className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-xs text-white outline-none" /></label>
-                    <button type="button" disabled={busyId !== null} onClick={() => void saveProduct(product)} className="inline-flex items-center justify-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-[10px] font-black text-zinc-300 disabled:opacity-40"><MdSave size={16} /> Guardar</button>
+                    <label className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-600">Precio €<input type="number" min="0" max={MAX_PRICE_EUR} step="0.01" value={edit.price} onChange={(event) => setEdits((current) => ({ ...current, [product.id]: { ...edit, price: event.target.value } }))} className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-xs text-white outline-none" /></label>
+                    <label className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-600">Validez<input type="number" min="1" max={MAX_VALIDITY_DAYS} step="1" value={edit.validity} onChange={(event) => setEdits((current) => ({ ...current, [product.id]: { ...edit, validity: event.target.value } }))} placeholder="∞" className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-xs text-white outline-none" /></label>
+                    <button type="button" disabled={busyId !== null} onClick={() => void saveProduct(product)} className="inline-flex items-center justify-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-[10px] font-black text-zinc-300 disabled:opacity-40"><MdSave size={16} /> {busyId === product.id ? "Guardando…" : "Guardar"}</button>
                     <button type="button" disabled={busyId !== null} onClick={() => void toggleProduct(product)} className={`inline-flex items-center justify-center gap-1.5 rounded-full border px-4 py-2.5 text-[10px] font-black disabled:opacity-40 ${product.active ? "border-red-400/15 bg-red-400/5 text-red-200" : "border-emerald-400/15 bg-emerald-400/5 text-emerald-200"}`}><MdEdit size={15} /> {product.active ? "Desactivar" : "Activar"}</button>
                   </div>
                 </div>
