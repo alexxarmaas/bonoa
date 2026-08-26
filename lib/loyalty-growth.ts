@@ -110,6 +110,28 @@ export type WalletRewardProgress = {
   max_rewards_per_wallet: number | null;
 };
 
+export type WalletLoyaltyProgress = {
+  rule_id: string;
+  business_id: string;
+  business_name: string;
+  business_logo_url: string | null;
+  business_accent_color: string;
+  rule_name: string;
+  trigger_type: AutomationTrigger;
+  threshold_value: number;
+  trigger_product_name: string | null;
+  reward_product_name: string;
+  metric_value: number;
+  progress_value: number;
+  remaining_value: number;
+  rewards_earned: number;
+  reward_pending: boolean;
+  completed: boolean;
+  repeatable: boolean;
+  max_rewards_per_wallet: number | null;
+  created_at: string;
+};
+
 export type PublicCampaign = {
   campaign_id: string;
   campaign_name: string;
@@ -143,30 +165,18 @@ function assertData<T>(data: T | null, error: RpcError | null, fallback: string)
 }
 
 export async function getBusinessCustomers(businessId: string): Promise<BusinessCustomer[]> {
-  const { data, error } = await rpc<BusinessCustomer[]>("business_customer_loyalty_snapshot", {
-    target_business_id: businessId,
-  });
+  const { data, error } = await rpc<BusinessCustomer[]>("business_customer_loyalty_snapshot", { target_business_id: businessId });
   if (error) throw error;
   return data ?? [];
 }
 
 export async function getBusinessCampaigns(businessId: string): Promise<LoyaltyCampaign[]> {
-  const { data, error } = await rpc<LoyaltyCampaign[]>("business_loyalty_campaigns", {
-    target_business_id: businessId,
-  });
+  const { data, error } = await rpc<LoyaltyCampaign[]>("business_loyalty_campaigns", { target_business_id: businessId });
   if (error) throw error;
   return data ?? [];
 }
 
-export async function createCampaign(input: {
-  businessId: string;
-  productId: string;
-  name: string;
-  message?: string;
-  startsAt?: string | null;
-  endsAt?: string | null;
-  maxClaims?: number | null;
-}) {
+export async function createCampaign(input: { businessId: string; productId: string; name: string; message?: string; startsAt?: string | null; endsAt?: string | null; maxClaims?: number | null }) {
   const { data, error } = await rpc<Record<string, unknown>>("create_loyalty_campaign", {
     target_business_id: input.businessId,
     target_product_id: input.productId,
@@ -180,44 +190,29 @@ export async function createCampaign(input: {
 }
 
 export async function setCampaignActive(campaignId: string, active: boolean) {
-  const { data, error } = await rpc<Record<string, unknown>>("set_loyalty_campaign_active", {
-    target_campaign_id: campaignId,
-    next_active: active,
-  });
+  const { data, error } = await rpc<Record<string, unknown>>("set_loyalty_campaign_active", { target_campaign_id: campaignId, next_active: active });
   return assertData(data, error, "No se pudo actualizar la campaña.");
 }
 
 export async function getBusinessRewardRules(businessId: string): Promise<RewardRule[]> {
-  const { data, error } = await rpc<RewardRule[]>("business_loyalty_reward_rules", {
-    target_business_id: businessId,
-  });
+  const { data, error } = await rpc<RewardRule[]>("business_loyalty_reward_rules", { target_business_id: businessId });
   if (error) throw error;
   return data ?? [];
 }
 
 export async function getBusinessAutomationRules(businessId: string): Promise<AutomationRule[]> {
-  const { data, error } = await rpc<AutomationRule[]>("business_loyalty_automation_rules", {
-    target_business_id: businessId,
-  });
+  const { data, error } = await rpc<AutomationRule[]>("business_loyalty_automation_rules", { target_business_id: businessId });
   if (error) throw error;
   return data ?? [];
 }
 
 export async function getLoyaltyEventSummary(businessId: string): Promise<LoyaltyEventSummary> {
-  const { data, error } = await rpc<LoyaltyEventSummary[]>("business_loyalty_event_summary", {
-    target_business_id: businessId,
-  });
+  const { data, error } = await rpc<LoyaltyEventSummary[]>("business_loyalty_event_summary", { target_business_id: businessId });
   if (error) throw error;
   return data?.[0] ?? { purchases_30d: 0, visits_30d: 0, spend_30d_cents: 0, rewards_30d: 0 };
 }
 
-export async function registerLoyaltyEvent(input: {
-  businessId: string;
-  qr: BonoaQrIdentity;
-  type: LoyaltyEventType;
-  amountCents?: number;
-  requestId?: string;
-}): Promise<LoyaltyEventResult> {
+export async function registerLoyaltyEvent(input: { businessId: string; qr: BonoaQrIdentity; type: LoyaltyEventType; amountCents?: number; requestId?: string }): Promise<LoyaltyEventResult> {
   const { data, error } = await rpc<LoyaltyEventResult[]>("register_loyalty_event", {
     target_business_id: input.businessId,
     target_wallet_token: input.qr.token,
@@ -232,19 +227,8 @@ export async function registerLoyaltyEvent(input: {
   return event;
 }
 
-export async function createAutomationRule(input: {
-  businessId: string;
-  name: string;
-  triggerType: AutomationTrigger;
-  thresholdValue: number;
-  triggerProductId?: string | null;
-  rewardProductId: string;
-  repeatable?: boolean;
-  maxRewards?: number | null;
-}) {
-  const threshold = input.triggerType === "spend_total"
-    ? Math.round(input.thresholdValue * 100)
-    : Math.round(input.thresholdValue);
+export async function createAutomationRule(input: { businessId: string; name: string; triggerType: AutomationTrigger; thresholdValue: number; triggerProductId?: string | null; rewardProductId: string; repeatable?: boolean; maxRewards?: number | null }) {
+  const threshold = input.triggerType === "spend_total" ? Math.round(input.thresholdValue * 100) : Math.round(input.thresholdValue);
   const { data, error } = await rpc<Record<string, unknown>>("create_loyalty_automation_rule", {
     target_business_id: input.businessId,
     rule_name: input.name.trim(),
@@ -259,11 +243,14 @@ export async function createAutomationRule(input: {
 }
 
 export async function setAutomationRuleActive(ruleId: string, active: boolean) {
-  const { data, error } = await rpc<Record<string, unknown>>("set_loyalty_automation_rule_active", {
-    target_rule_id: ruleId,
-    next_active: active,
-  });
+  const { data, error } = await rpc<Record<string, unknown>>("set_loyalty_automation_rule_active", { target_rule_id: ruleId, next_active: active });
   return assertData(data, error, "No se pudo actualizar la automatización.");
+}
+
+export async function getWalletLoyaltyProgress(): Promise<WalletLoyaltyProgress[]> {
+  const { data, error } = await rpc<WalletLoyaltyProgress[]>("wallet_loyalty_progress");
+  if (error) throw error;
+  return data ?? [];
 }
 
 export async function getWalletRewardProgress(): Promise<WalletRewardProgress[]> {
@@ -272,14 +259,7 @@ export async function getWalletRewardProgress(): Promise<WalletRewardProgress[]>
   return data ?? [];
 }
 
-export async function createRewardRule(input: {
-  businessId: string;
-  triggerProductId: string;
-  rewardProductId: string;
-  name: string;
-  every: number;
-  maxRewards?: number | null;
-}) {
+export async function createRewardRule(input: { businessId: string; triggerProductId: string; rewardProductId: string; name: string; every: number; maxRewards?: number | null }) {
   const { data, error } = await rpc<Record<string, unknown>>("create_loyalty_reward_rule", {
     target_business_id: input.businessId,
     target_trigger_product_id: input.triggerProductId,
@@ -292,25 +272,18 @@ export async function createRewardRule(input: {
 }
 
 export async function setRewardRuleActive(ruleId: string, active: boolean) {
-  const { data, error } = await rpc<Record<string, unknown>>("set_loyalty_reward_rule_active", {
-    target_rule_id: ruleId,
-    next_active: active,
-  });
+  const { data, error } = await rpc<Record<string, unknown>>("set_loyalty_reward_rule_active", { target_rule_id: ruleId, next_active: active });
   return assertData(data, error, "No se pudo actualizar la recompensa.");
 }
 
 export async function getPublicCampaign(code: string): Promise<PublicCampaign | null> {
-  const { data, error } = await rpc<PublicCampaign[]>("public_loyalty_campaign", {
-    campaign_code: code.trim(),
-  });
+  const { data, error } = await rpc<PublicCampaign[]>("public_loyalty_campaign", { campaign_code: code.trim() });
   if (error) throw error;
   return data?.[0] ?? null;
 }
 
 export async function claimCampaign(code: string): Promise<CampaignClaim> {
-  const { data, error } = await rpc<CampaignClaim[]>("claim_loyalty_campaign", {
-    campaign_code: code.trim(),
-  });
+  const { data, error } = await rpc<CampaignClaim[]>("claim_loyalty_campaign", { campaign_code: code.trim() });
   if (error) throw error;
   const claim = data?.[0];
   if (!claim) throw new Error("No se pudo añadir la recompensa a tu wallet.");
@@ -323,12 +296,7 @@ export function campaignUrl(code: string) {
 }
 
 export function segmentLabel(segment: CustomerSegment) {
-  return {
-    new: "Nuevo",
-    active: "Activo",
-    loyal: "Fiel",
-    at_risk: "En riesgo",
-  }[segment];
+  return { new: "Nuevo", active: "Activo", loyal: "Fiel", at_risk: "En riesgo" }[segment];
 }
 
 export function automationTriggerLabel(trigger: AutomationTrigger, thresholdValue: number, productName?: string | null) {
