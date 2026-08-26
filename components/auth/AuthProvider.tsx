@@ -48,7 +48,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      const nextUser = session?.user ?? null;
+      setUser(nextUser);
+      if (!nextUser) setProfile(null);
       setLoading(false);
     });
 
@@ -59,8 +61,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    void refreshProfile();
-  }, [refreshProfile]);
+    if (!user) return;
+    let active = true;
+
+    supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (active) setProfile(data ?? null);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   const value = useMemo<AuthContextValue>(
     () => ({ user, profile, loading, refreshProfile, signOut }),
