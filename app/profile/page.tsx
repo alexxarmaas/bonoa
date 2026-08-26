@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MdArrowBack, MdBadge, MdEdit, MdEmail, MdLockReset, MdLogout, MdSave, MdSecurity, MdStorefront } from "react-icons/md";
@@ -16,18 +16,21 @@ function ProfileContent() {
   const initial = displayName.slice(0, 1).toUpperCase();
   const publicId = user ? `USR-${user.id.slice(0, 4).toUpperCase()}-${user.id.slice(-4).toUpperCase()}` : "";
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(displayName);
+  const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!editing) setName(displayName);
-  }, [displayName, editing]);
-
   const logout = async () => {
     await signOut();
     router.replace("/login");
+  };
+
+  const startEditing = () => {
+    setName(displayName);
+    setEditing(true);
+    setError(null);
+    setSuccess(null);
   };
 
   const saveProfile = async (event: FormEvent) => {
@@ -69,7 +72,7 @@ function ProfileContent() {
             <h2 className="truncate text-xl font-black text-white">{displayName}</h2>
             <p className="mt-1 text-xs font-semibold tracking-[0.16em] text-zinc-500">{publicId}</p>
           </div>
-          <button type="button" onClick={() => { setEditing((current) => !current); setError(null); setSuccess(null); }} className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:text-white" aria-label="Editar perfil"><MdEdit size={18} /></button>
+          <button type="button" onClick={editing ? () => setEditing(false) : startEditing} className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:text-white" aria-label="Editar perfil"><MdEdit size={18} /></button>
         </div>
 
         {editing ? (
