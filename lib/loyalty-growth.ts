@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase/client";
+import type { BonoaQrIdentity } from "@/lib/business-data";
 
 type RpcError = { message: string };
 type RpcResult<T> = PromiseLike<{ data: T | null; error: RpcError | null }>;
@@ -7,6 +8,8 @@ type RpcClient = <T>(fn: string, args?: Record<string, unknown>) => RpcResult<T>
 const rpc = supabase.rpc as unknown as RpcClient;
 
 export type CustomerSegment = "new" | "active" | "loyal" | "at_risk";
+export type LoyaltyEventType = "purchase" | "visit";
+export type AutomationTrigger = "purchase_count" | "visit_count" | "spend_total" | "product_redemption_count";
 
 export type BusinessCustomer = {
   wallet_id: string;
@@ -16,6 +19,10 @@ export type BusinessCustomer = {
   passes_issued: number;
   active_passes: number;
   redemptions: number;
+  purchases: number;
+  visits: number;
+  spend_cents: number;
+  rewards_earned: number;
   issued_value_cents: number;
   segment: CustomerSegment;
   days_since_activity: number;
@@ -50,6 +57,38 @@ export type RewardRule = {
   rewards_issued: number;
   customers_rewarded: number;
   created_at: string;
+};
+
+export type AutomationRule = {
+  rule_id: string;
+  rule_name: string;
+  trigger_type: AutomationTrigger;
+  threshold_value: number;
+  trigger_product_id: string | null;
+  trigger_product_name: string | null;
+  reward_product_id: string;
+  reward_product_name: string;
+  repeatable: boolean;
+  max_rewards_per_wallet: number | null;
+  active: boolean;
+  rewards_issued: number;
+  customers_rewarded: number;
+  created_at: string;
+};
+
+export type LoyaltyEventResult = {
+  event_id: string;
+  event_type: LoyaltyEventType;
+  amount_cents: number;
+  rewards_issued: number;
+  already_recorded: boolean;
+};
+
+export type LoyaltyEventSummary = {
+  purchases_30d: number;
+  visits_30d: number;
+  spend_30d_cents: number;
+  rewards_30d: number;
 };
 
 export type WalletRewardProgress = {
@@ -104,7 +143,7 @@ function assertData<T>(data: T | null, error: RpcError | null, fallback: string)
 }
 
 export async function getBusinessCustomers(businessId: string): Promise<BusinessCustomer[]> {
-  const { data, error } = await rpc<BusinessCustomer[]>("business_customer_segments", {
+  const { data, error } = await rpc<BusinessCustomer[]>("business_customer_loyalty_snapshot", {
     target_business_id: businessId,
   });
   if (error) throw error;
@@ -154,6 +193,77 @@ export async function getBusinessRewardRules(businessId: string): Promise<Reward
   });
   if (error) throw error;
   return data ?? [];
+}
+
+export async function getBusinessAutomationRules(businessId: string): Promise<AutomationRule[]> {
+  const { data, error } = await rpc<AutomationRule[]>("business_loyalty_automation_rules", {
+    target_business_id: businessId,
+  });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function getLoyaltyEventSummary(businessId: string): Promise<LoyaltyEventSummary> {
+  const { data, error } = await rpc<LoyaltyEventSummary[]>("business_loyalty_event_summary", {
+    target_business_id: businessId,
+  });
+  if (error) throw error;
+  return data?.[0] ?? { purchases_30d: 0, visits_30d: 0, spend_30d_cents: 0, rewards_30d: 0 };
+}
+
+export async function registerLoyaltyEvent(input: {
+  businessId: string;
+  qr: BonoaQrIdentity;
+  type: LoyaltyEventType;
+  amountCents?: number;
+  requestId?: string;
+}): Promise<LoyaltyEventResult> {
+  const { data, error } = await rpc<LoyaltyEventResult[]>("register_loyalty_event", {
+    target_business_id: input.businessId,
+    target_wallet_token: input.qr.token,
+    target_qr_version: input.qr.version,
+    target_event_type: input.type,
+    target_amount_cents: input.type === "visit" ? 0 : Math.max(0, Math.round(input.amountCents ?? 0)),
+    request_id: input.requestId ?? crypto.randomUUID(),
+  });
+  if (error) throw error;
+  const event = data?.[0];
+  if (!event) throw new Error("No se pudo registrar la actividad.");
+  return event;
+}
+
+export async function createAutomationRule(input: {
+  businessId: string;
+  name: string;
+  triggerType: AutomationTrigger;
+  thresholdValue: number;
+  triggerProductId?: string | null;
+  rewardProductId: string;
+  repeatable?: boolean;
+  maxRewards?: number | null;
+}) {
+  const threshold = input.triggerType === "spend_total"
+    ? Math.round(input.thresholdValue * 100)
+    : Math.round(input.thresholdValue);
+  const { data, error } = await rpc<Record<string, unknown>>("create_loyalty_automation_rule", {
+    target_business_id: input.businessId,
+    rule_name: input.name.trim(),
+    rule_trigger_type: input.triggerType,
+    rule_threshold_value: threshold,
+    target_trigger_product_id: input.triggerType === "product_redemption_count" ? input.triggerProductId ?? null : null,
+    target_reward_product_id: input.rewardProductId,
+    rule_repeatable: input.repeatable ?? true,
+    reward_limit: input.maxRewards ?? null,
+  });
+  return assertData(data, error, "No se pudo crear la automatización.");
+}
+
+export async function setAutomationRuleActive(ruleId: string, active: boolean) {
+  const { data, error } = await rpc<Record<string, unknown>>("set_loyalty_automation_rule_active", {
+    target_rule_id: ruleId,
+    next_active: active,
+  });
+  return assertData(data, error, "No se pudo actualizar la automatización.");
 }
 
 export async function getWalletRewardProgress(): Promise<WalletRewardProgress[]> {
@@ -219,4 +329,11 @@ export function segmentLabel(segment: CustomerSegment) {
     loyal: "Fiel",
     at_risk: "En riesgo",
   }[segment];
+}
+
+export function automationTriggerLabel(trigger: AutomationTrigger, thresholdValue: number, productName?: string | null) {
+  if (trigger === "purchase_count") return `Cada ${thresholdValue} compra${thresholdValue === 1 ? "" : "s"}`;
+  if (trigger === "visit_count") return `Cada ${thresholdValue} visita${thresholdValue === 1 ? "" : "s"}`;
+  if (trigger === "spend_total") return `Cada ${(thresholdValue / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" })} gastados`;
+  return `Cada ${thresholdValue} consumo${thresholdValue === 1 ? "" : "s"} de ${productName || "un producto"}`;
 }
