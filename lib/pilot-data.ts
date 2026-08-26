@@ -12,6 +12,7 @@ export type PilotBusiness = BusinessRow & {
   website_url: string | null;
   instagram_url: string | null;
   address: string | null;
+  accent_color: string;
 };
 
 export type PilotProduct = ProductRow & {
@@ -32,6 +33,7 @@ export type BusinessProfileInput = {
   instagramUrl: string;
   address: string;
   logoUrl: string;
+  accentColor: string;
 };
 
 function clean(value: string) {
@@ -59,6 +61,31 @@ export async function getPilotBusiness(businessId: string): Promise<PilotBusines
   return data as PilotBusiness;
 }
 
+export async function getPublicBusinessBySlug(slug: string): Promise<{ business: PilotBusiness; products: PilotProduct[] } | null> {
+  const { data: business, error: businessError } = await supabase
+    .from("businesses")
+    .select("*")
+    .eq("slug", slug)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (businessError) throw businessError;
+  if (!business) return null;
+
+  const { data: products, error: productsError } = await supabase
+    .from("loyalty_products")
+    .select("*")
+    .eq("business_id", business.id)
+    .eq("active", true)
+    .order("created_at", { ascending: false });
+
+  if (productsError) throw productsError;
+  return {
+    business: business as PilotBusiness,
+    products: (products ?? []) as PilotProduct[],
+  };
+}
+
 export async function updatePilotBusiness(businessId: string, input: BusinessProfileInput): Promise<PilotBusiness> {
   const payload = {
     name: input.name.trim(),
@@ -68,6 +95,7 @@ export async function updatePilotBusiness(businessId: string, input: BusinessPro
     instagram_url: clean(input.instagramUrl),
     address: clean(input.address),
     logo_url: clean(input.logoUrl),
+    accent_color: input.accentColor,
     updated_at: new Date().toISOString(),
   } as unknown as BusinessUpdate;
 
@@ -80,6 +108,30 @@ export async function updatePilotBusiness(businessId: string, input: BusinessPro
 
   if (error) throw error;
   return data as PilotBusiness;
+}
+
+export async function uploadBusinessLogo(businessId: string, file: File): Promise<string> {
+  const allowed = new Map([
+    ["image/png", "png"],
+    ["image/jpeg", "jpg"],
+    ["image/webp", "webp"],
+  ]);
+  const extension = allowed.get(file.type);
+  if (!extension) throw new Error("El logo debe ser PNG, JPG o WEBP.");
+  if (file.size > 2 * 1024 * 1024) throw new Error("El logo no puede superar 2 MB.");
+
+  const path = `${businessId}/logo.${extension}`;
+  const { error } = await supabase.storage
+    .from("business-assets")
+    .upload(path, file, {
+      upsert: true,
+      contentType: file.type,
+      cacheControl: "3600",
+    });
+
+  if (error) throw error;
+  const { data } = supabase.storage.from("business-assets").getPublicUrl(path);
+  return `${data.publicUrl}?v=${Date.now()}`;
 }
 
 export async function getPilotProducts(businessId: string): Promise<PilotProduct[]> {
