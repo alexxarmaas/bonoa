@@ -5,8 +5,17 @@ const checks = [
   { path: "/register", status: 200 },
   { path: "/forgot-password", status: 200 },
   { path: "/reset-password", status: 200 },
+  { path: "/promo/smoke-test-code", status: 200 },
   { path: "/manifest.webmanifest", status: 200, json: (value) => value?.name === "Bonoa" && value?.display === "standalone" },
-  { path: "/api/health", status: 200, json: (value) => value?.status === "ok" && value?.service === "bonoa" },
+  {
+    path: "/api/health",
+    status: 200,
+    json: (value) => value?.status === "ok"
+      && value?.service === "bonoa"
+      && value?.capabilities?.loyaltyCampaigns === true
+      && value?.capabilities?.automaticRewards === true
+      && value?.capabilities?.customerSegments === true,
+  },
   { path: "/__bonoa_missing_route__", status: 404 },
 ];
 
