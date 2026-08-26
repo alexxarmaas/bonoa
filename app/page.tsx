@@ -2,17 +2,19 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { MdArrowForward, MdQrCode2, MdRefresh, MdVerified, MdWallet } from "react-icons/md";
+import { MdArrowForward, MdQrCode2, MdRedeem, MdRefresh, MdVerified, MdWallet } from "react-icons/md";
 import AuthGuard from "@/components/auth/AuthGuard";
 import { useAuth } from "@/components/auth/AuthProvider";
 import PassCard from "@/components/PassCard";
 import { friendlyError } from "@/lib/errors";
+import { getWalletRewardProgress, type WalletRewardProgress } from "@/lib/loyalty-growth";
 import { useWalletRealtime } from "@/lib/use-wallet-realtime";
 import { getWalletPasses, type WalletPass } from "@/lib/wallet-data";
 
 function WalletContent() {
   const { user, profile } = useAuth();
   const [passes, setPasses] = useState<WalletPass[]>([]);
+  const [rewardProgress, setRewardProgress] = useState<WalletRewardProgress[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,8 +23,17 @@ function WalletContent() {
     if (!user) return;
     let active = true;
 
-    getWalletPasses(user.id)
-      .then((data) => { if (active) { setPasses(data); setError(null); } })
+    Promise.all([
+      getWalletPasses(user.id),
+      getWalletRewardProgress().catch(() => [] as WalletRewardProgress[]),
+    ])
+      .then(([data, progress]) => {
+        if (active) {
+          setPasses(data);
+          setRewardProgress(progress);
+          setError(null);
+        }
+      })
       .catch((cause) => { if (active) setError(friendlyError(cause, "No hemos podido cargar tus bonos.")); })
       .finally(() => { if (active) setLoading(false); });
 
@@ -31,8 +42,15 @@ function WalletContent() {
 
   const syncWallet = useCallback(() => {
     if (!user) return;
-    void getWalletPasses(user.id)
-      .then((data) => { setPasses(data); setError(null); })
+    void Promise.all([
+      getWalletPasses(user.id),
+      getWalletRewardProgress().catch(() => [] as WalletRewardProgress[]),
+    ])
+      .then(([data, progress]) => {
+        setPasses(data);
+        setRewardProgress(progress);
+        setError(null);
+      })
       .catch((cause) => setError(friendlyError(cause, "No hemos podido sincronizar tu wallet.")));
   }, [user]);
 
@@ -42,9 +60,18 @@ function WalletContent() {
     if (!user) return;
     setRefreshing(true);
     setError(null);
-    try { setPasses(await getWalletPasses(user.id)); }
-    catch (cause) { setError(friendlyError(cause, "No hemos podido actualizar tu wallet.")); }
-    finally { setRefreshing(false); }
+    try {
+      const [data, progress] = await Promise.all([
+        getWalletPasses(user.id),
+        getWalletRewardProgress().catch(() => [] as WalletRewardProgress[]),
+      ]);
+      setPasses(data);
+      setRewardProgress(progress);
+    } catch (cause) {
+      setError(friendlyError(cause, "No hemos podido actualizar tu wallet."));
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const activePasses = passes.filter((pass) => pass.status === "active" || pass.status === "expiring_soon");
@@ -65,7 +92,7 @@ function WalletContent() {
           <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-orange-500/10 blur-3xl" />
           <p className="text-xs font-semibold text-zinc-500">Hola, {displayName}</p>
           <h1 className="mt-3 max-w-xl text-4xl font-black leading-[1.03] tracking-[-0.055em] text-white sm:text-5xl">Todos tus bonos.<br /><span className="text-brand-gradient">Un solo QR.</span></h1>
-          <p className="mt-5 max-w-lg text-sm leading-7 text-zinc-400 sm:text-base">Lleva tus fidelizaciones contigo y consulta en segundos cuánto te queda en cada establecimiento.</p>
+          <p className="mt-5 max-w-lg text-sm leading-7 text-zinc-400 sm:text-base">Lleva tus fidelizaciones contigo, consulta cuánto te queda y descubre cuánto te falta para tu próximo premio.</p>
           <div className="mt-7 flex flex-wrap gap-3"><Link href="/qr" className="brand-gradient inline-flex items-center gap-2 rounded-full px-5 py-3 text-xs font-black text-white shadow-[0_16px_40px_rgba(255,68,31,.18)]"><MdQrCode2 size={19} /> Mostrar mi QR</Link><Link href="#bonos" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-xs font-bold text-zinc-200 hover:bg-white/8">Ver bonos <MdArrowForward size={16} /></Link></div>
         </div>
 
@@ -74,6 +101,35 @@ function WalletContent() {
           <div className="bonoa-card rounded-[1.6rem] p-5"><p className="text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-500">Atención</p><p className="mt-3 text-4xl font-black tracking-tight text-white">{loading ? "—" : expiringSoon}</p><p className="mt-2 text-xs text-amber-200/75">caduca pronto</p></div>
         </div>
       </section>
+
+      {!loading && rewardProgress.length ? <section className="mt-10">
+        <div className="mb-5"><p className="text-[10px] font-bold uppercase tracking-[0.24em] text-amber-200">Por volver</p><h2 className="mt-2 text-2xl font-black tracking-tight text-white">Tus próximos premios</h2><p className="mt-2 text-xs leading-5 text-zinc-600">Cada visita cuenta. Cuando completes un objetivo, la recompensa aparecerá automáticamente en tu wallet.</p></div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{rewardProgress.map((reward) => {
+          const progress = reward.completed || reward.reward_pending ? reward.every_n_redemptions : reward.progress_in_cycle;
+          const percent = reward.every_n_redemptions ? Math.min(100, Math.round((progress / reward.every_n_redemptions) * 100)) : 0;
+          const headline = reward.completed
+            ? "Objetivo completado"
+            : reward.reward_pending
+              ? "¡Premio conseguido!"
+              : reward.next_reward_in === 1
+                ? `Te falta 1 consumo`
+                : `Te faltan ${reward.next_reward_in} consumos`;
+          const detail = reward.completed
+            ? `Ya has conseguido todos los premios de “${reward.rule_name}”.`
+            : reward.reward_pending
+              ? `${reward.reward_product_name} está pendiente de entrega automática.`
+              : `para conseguir ${reward.reward_product_name}`;
+
+          return <article key={reward.rule_id} className="bonoa-card overflow-hidden rounded-[1.6rem]">
+            <div className="h-1" style={{ backgroundColor: reward.business_accent_color || "#f97316" }} />
+            <div className="p-5">
+              <div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">{reward.business_name}</p><h3 className="mt-1 text-sm font-black text-white">{reward.rule_name}</h3></div><div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-amber-300/15 bg-amber-300/[0.06] text-amber-200"><MdRedeem size={18} /></div></div>
+              <p className="mt-4 text-lg font-black text-white">{headline}</p><p className="mt-1 text-xs leading-5 text-zinc-500">{detail}</p>
+              {!reward.completed ? <><div className="mt-4 h-2 overflow-hidden rounded-full bg-white/5"><div className="h-full rounded-full bg-white/70 transition-all" style={{ width: `${percent}%` }} /></div><div className="mt-2 flex items-center justify-between text-[10px] text-zinc-600"><span>{progress}/{reward.every_n_redemptions} consumos</span><span>{reward.rewards_earned ? `${reward.rewards_earned} premio${reward.rewards_earned === 1 ? "" : "s"} conseguido${reward.rewards_earned === 1 ? "" : "s"}` : reward.trigger_product_name}</span></div></> : null}
+            </div>
+          </article>;
+        })}</div>
+      </section> : null}
 
       <section id="bonos" className="mt-10">
         <div className="mb-5 flex items-end justify-between gap-4">
