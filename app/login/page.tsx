@@ -23,14 +23,22 @@ export default function LoginPage() {
       return;
     }
 
+    let errorTimer: number | undefined;
+
     try {
       const params = new URLSearchParams(window.location.search);
       if (params.get("sso_error") === "1") {
-        setError("El acceso desde Tramassso ha caducado o no pudo validarse. Inténtalo de nuevo; el código solo puede usarse una vez.");
+        errorTimer = window.setTimeout(() => {
+          setError("El acceso desde Tramassso ha caducado o no pudo validarse. Inténtalo de nuevo; el código solo puede usarse una vez.");
+        }, 0);
       }
     } catch {
       // La pantalla de acceso sigue disponible aunque no podamos leer la URL.
     }
+
+    return () => {
+      if (errorTimer !== undefined) window.clearTimeout(errorTimer);
+    };
   }, [authLoading, user, router]);
 
   const submit = async (event: FormEvent) => {
