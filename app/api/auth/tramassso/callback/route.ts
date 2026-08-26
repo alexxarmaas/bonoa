@@ -22,10 +22,11 @@ function completionUrl(request: NextRequest) {
   return new URL("/auth/tramassso/complete", request.nextUrl.origin).toString();
 }
 
-function failed(request: NextRequest) {
-  const response = NextResponse.redirect(new URL("/login?sso_error=1", request.url), { status: 303 });
+function failed(request: NextRequest, reason = "1") {
+  const response = NextResponse.redirect(new URL(`/login?sso_error=${encodeURIComponent(reason)}`, request.url), { status: 303 });
   response.headers.set("Cache-Control", "no-store, max-age=0");
   response.headers.set("Referrer-Policy", "no-referrer");
+  response.headers.set("X-Robots-Tag", "noindex, nofollow");
   return response;
 }
 
@@ -66,8 +67,16 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      if (createError && !isExistingUserError(createError.code)) throw createError;
-      if (created.user) userId = created.user.id;
+      // Tramassso currently does not model a verified-email guarantee. Never link
+      // an existing Bonoa account solely because its email happens to match the
+      // Tramassso identity. Existing-account linking needs an explicit flow in
+      // which the user proves control of both sessions.
+      if (createError && isExistingUserError(createError.code)) {
+        return failed(request, "link_required");
+      }
+      if (createError) throw createError;
+      if (!created.user) throw new Error("sso_user_creation_failed");
+      userId = created.user.id;
     }
 
     const { data: generated, error: generateError } = await admin.auth.admin.generateLink({
@@ -85,7 +94,6 @@ export async function GET(request: NextRequest) {
       throw generateError ?? new Error("magic_link_generation_failed");
     }
 
-    userId ??= generated.user.id;
     if (generated.user.id !== userId) throw new Error("identity_mapping_mismatch");
 
     const { error: mappingError } = await admin.from("external_identities").upsert({
@@ -100,6 +108,7 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.redirect(generated.properties.action_link, { status: 303 });
     response.headers.set("Cache-Control", "no-store, max-age=0");
     response.headers.set("Referrer-Policy", "no-referrer");
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
     return response;
   } catch {
     return failed(request);
