@@ -3,11 +3,12 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { MdArrowBack, MdFilterList, MdQrCodeScanner, MdSearch, MdStyle } from "react-icons/md";
+import { MdArrowBack, MdDownload, MdFilterList, MdQrCodeScanner, MdSearch, MdStyle } from "react-icons/md";
 import AuthGuard from "@/components/auth/AuthGuard";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getBusinessAccess, getBusinessProducts } from "@/lib/business-data";
 import { getBusinessManagedPasses, type BusinessManagedPass } from "@/lib/business-analytics";
+import { downloadCsv, safeFilename } from "@/lib/csv";
 import { friendlyError } from "@/lib/errors";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -115,6 +116,25 @@ function PassesContent() {
     void loadFilters({ query: "", status: "", productId: "" });
   };
 
+  const exportRows = () => {
+    if (!passes.length) return;
+    downloadCsv(
+      `${safeFilename(businessName)}-bonos-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["ID bono", "Producto", "Tipo", "Estado", "Unidades iniciales", "Unidades restantes", "Emitido", "Caducidad", "Actualizado"],
+      passes.map((pass) => [
+        pass.pass_id,
+        pass.product_name,
+        pass.product_type === "uses" ? "Usos" : "Saldo",
+        statusLabel[pass.pass_status],
+        pass.initial_units,
+        pass.remaining_units,
+        new Date(pass.purchased_at).toLocaleString("es-ES"),
+        pass.expires_at ? new Date(pass.expires_at).toLocaleString("es-ES") : "Sin caducidad",
+        new Date(pass.updated_at).toLocaleString("es-ES"),
+      ]),
+    );
+  };
+
   return (
     <main className="bonoa-shell min-h-screen pb-24">
       <header className="flex flex-wrap items-center justify-between gap-4">
@@ -122,7 +142,10 @@ function PassesContent() {
           <Link href={`/business/${businessId}`} className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/5 text-zinc-300" aria-label="Volver"><MdArrowBack size={20} /></Link>
           <div><p className="text-[10px] font-bold uppercase tracking-[0.24em] text-orange-300">{businessName || "Bonoa Business"}</p><h1 className="mt-1 text-2xl font-black text-white">Bonos emitidos</h1></div>
         </div>
-        <Link href={`/business/${businessId}/scan`} className="brand-gradient inline-flex items-center gap-2 rounded-full px-5 py-3 text-xs font-black text-white"><MdQrCodeScanner size={18} /> Escanear cliente</Link>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={exportRows} disabled={loading || !passes.length} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-3 text-xs font-bold text-zinc-300 disabled:opacity-35"><MdDownload size={18} /> Exportar CSV</button>
+          <Link href={`/business/${businessId}/scan`} className="brand-gradient inline-flex items-center gap-2 rounded-full px-5 py-3 text-xs font-black text-white"><MdQrCodeScanner size={18} /> Escanear cliente</Link>
+        </div>
       </header>
 
       <form onSubmit={submit} className="bonoa-card mt-7 grid gap-3 rounded-[1.6rem] p-4 md:grid-cols-[1fr_180px_220px_auto]">
@@ -149,7 +172,7 @@ function PassesContent() {
             </article>
           );
         })}
-        {!loading && !passes.length ? <div className="rounded-[1.5rem] border border-dashed border-white/10 p-10 text-center text-sm text-zinc-600">No hay bonos que coincidan con estos filtros.</div> : null}
+        {!loading && !passes.length ? <div className="rounded-[1.5rem] border border-dashed border-white/10 p-10 text-center"><MdStyle size={30} className="mx-auto text-zinc-700" /><p className="mt-4 text-sm font-bold text-white">No hay bonos que mostrar</p><p className="mt-2 text-xs text-zinc-600">Prueba a limpiar los filtros o escanea una wallet para emitir el primero.</p><div className="mt-5 flex justify-center gap-2"><button type="button" onClick={reset} className="rounded-full border border-white/10 px-4 py-2.5 text-xs font-bold text-zinc-400">Limpiar filtros</button><Link href={`/business/${businessId}/scan`} className="brand-gradient rounded-full px-4 py-2.5 text-xs font-black text-white">Emitir bono</Link></div></div> : null}
       </section>
     </main>
   );

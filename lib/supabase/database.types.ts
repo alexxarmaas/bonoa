@@ -12,6 +12,61 @@ export type Database = {
   }
   public: {
     Tables: {
+      business_audit_events: {
+        Row: {
+          actor_id: string | null
+          business_id: string
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json
+          pass_id: string | null
+          product_id: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          business_id: string
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json
+          pass_id?: string | null
+          product_id?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          business_id?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json
+          pass_id?: string | null
+          product_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_audit_events_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_audit_events_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "passes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_audit_events_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "loyalty_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_members: {
         Row: {
           business_id: string
@@ -43,31 +98,76 @@ export type Database = {
       }
       businesses: {
         Row: {
+          accent_color: string
+          address: string | null
           created_at: string
+          description: string | null
           id: string
+          instagram_url: string | null
           logo_url: string | null
           name: string
+          phone: string | null
           slug: string
           status: string
           updated_at: string
+          website_url: string | null
         }
         Insert: {
+          accent_color?: string
+          address?: string | null
           created_at?: string
+          description?: string | null
           id?: string
+          instagram_url?: string | null
           logo_url?: string | null
           name: string
+          phone?: string | null
           slug: string
           status?: string
           updated_at?: string
+          website_url?: string | null
         }
         Update: {
+          accent_color?: string
+          address?: string | null
           created_at?: string
+          description?: string | null
           id?: string
+          instagram_url?: string | null
           logo_url?: string | null
           name?: string
+          phone?: string | null
           slug?: string
           status?: string
           updated_at?: string
+          website_url?: string | null
+        }
+        Relationships: []
+      }
+      external_identities: {
+        Row: {
+          created_at: string
+          email_snapshot: string | null
+          external_user_id: string
+          provider: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_snapshot?: string | null
+          external_user_id: string
+          provider: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_snapshot?: string | null
+          external_user_id?: string
+          provider?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -76,10 +176,12 @@ export type Database = {
           active: boolean
           business_id: string
           created_at: string
+          currency: string
           description: string | null
           id: string
           initial_units: number
           name: string
+          sale_price_cents: number | null
           type: Database["public"]["Enums"]["loyalty_product_type"]
           updated_at: string
           validity_days: number | null
@@ -88,10 +190,12 @@ export type Database = {
           active?: boolean
           business_id: string
           created_at?: string
+          currency?: string
           description?: string | null
           id?: string
           initial_units: number
           name: string
+          sale_price_cents?: number | null
           type?: Database["public"]["Enums"]["loyalty_product_type"]
           updated_at?: string
           validity_days?: number | null
@@ -100,10 +204,12 @@ export type Database = {
           active?: boolean
           business_id?: string
           created_at?: string
+          currency?: string
           description?: string | null
           id?: string
           initial_units?: number
           name?: string
+          sale_price_cents?: number | null
           type?: Database["public"]["Enums"]["loyalty_product_type"]
           updated_at?: string
           validity_days?: number | null
@@ -125,6 +231,8 @@ export type Database = {
           expires_at: string | null
           id: string
           initial_units: number
+          issued_currency: string | null
+          issued_price_cents: number | null
           loyalty_product_id: string
           purchased_at: string
           remaining_units: number
@@ -138,6 +246,8 @@ export type Database = {
           expires_at?: string | null
           id?: string
           initial_units: number
+          issued_currency?: string | null
+          issued_price_cents?: number | null
           loyalty_product_id: string
           purchased_at?: string
           remaining_units: number
@@ -151,6 +261,8 @@ export type Database = {
           expires_at?: string | null
           id?: string
           initial_units?: number
+          issued_currency?: string | null
+          issued_price_cents?: number | null
           loyalty_product_id?: string
           purchased_at?: string
           remaining_units?: number
@@ -305,6 +417,54 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      business_audit_feed: {
+        Args: {
+          page_limit: number
+          page_offset: number
+          target_business_id: string
+        }
+        Returns: {
+          actor_email: string
+          actor_id: string
+          actor_name: string
+          created_at: string
+          event_id: string
+          event_type: string
+          metadata: Json
+          pass_id: string
+          product_id: string
+        }[]
+      }
+      business_commercial_metrics: {
+        Args: { target_business_id: string }
+        Returns: {
+          active_wallets: number
+          average_consumed_percent: number
+          average_issued_price_cents: number
+          issued_value_30d_cents: number
+          issued_value_total_cents: number
+          passes_30d: number
+          priced_passes: number
+          wallets_30d: number
+        }[]
+      }
+      business_dashboard_metrics: {
+        Args: { target_business_id: string }
+        Returns: {
+          active_passes: number
+          cancelled_passes: number
+          exhausted_passes: number
+          expired_passes: number
+          expiring_30d: number
+          issued_30d: number
+          redemptions_7d: number
+          redemptions_today: number
+          redemptions_total: number
+          total_passes: number
+          unique_wallets: number
+          units_redeemed_30d: number
+        }[]
+      }
       business_members_for_management: {
         Args: { target_business_id: string }
         Returns: {
@@ -313,6 +473,41 @@ export type Database = {
           joined_at: string
           role: Database["public"]["Enums"]["business_role"]
           user_id: string
+        }[]
+      }
+      business_passes_for_management: {
+        Args: {
+          page_limit: number
+          page_offset: number
+          product_filter: string
+          search_query: string
+          status_filter: Database["public"]["Enums"]["pass_status"]
+          target_business_id: string
+        }
+        Returns: {
+          expires_at: string
+          initial_units: number
+          pass_id: string
+          pass_status: Database["public"]["Enums"]["pass_status"]
+          product_id: string
+          product_name: string
+          product_type: Database["public"]["Enums"]["loyalty_product_type"]
+          purchased_at: string
+          remaining_units: number
+          updated_at: string
+        }[]
+      }
+      business_product_metrics: {
+        Args: { target_business_id: string }
+        Returns: {
+          active: boolean
+          active_passes: number
+          passes_issued: number
+          product_id: string
+          product_name: string
+          product_type: Database["public"]["Enums"]["loyalty_product_type"]
+          redemptions: number
+          units_redeemed: number
         }[]
       }
       business_wallet_passes: {
@@ -332,16 +527,46 @@ export type Database = {
           remaining_units: number
         }[]
       }
+      cancel_pass: {
+        Args: { target_pass_id: string }
+        Returns: {
+          business_id: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          initial_units: number
+          issued_currency: string | null
+          issued_price_cents: number | null
+          loyalty_product_id: string
+          purchased_at: string
+          remaining_units: number
+          status: Database["public"]["Enums"]["pass_status"]
+          updated_at: string
+          wallet_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "passes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       create_business: {
         Args: { business_name: string; business_slug: string }
         Returns: {
+          accent_color: string
+          address: string | null
           created_at: string
+          description: string | null
           id: string
+          instagram_url: string | null
           logo_url: string | null
           name: string
+          phone: string | null
           slug: string
           status: string
           updated_at: string
+          website_url: string | null
         }
         SetofOptions: {
           from: "*"
@@ -362,6 +587,8 @@ export type Database = {
           expires_at: string | null
           id: string
           initial_units: number
+          issued_currency: string | null
+          issued_price_cents: number | null
           loyalty_product_id: string
           purchased_at: string
           remaining_units: number
@@ -403,7 +630,7 @@ export type Database = {
         Returns: boolean
       }
       rotate_wallet_qr: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           created_at: string
           id: string
@@ -457,11 +684,15 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] & DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] & DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends { Row: infer R }
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends { Row: infer R }
     ? R
     : never
   : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])

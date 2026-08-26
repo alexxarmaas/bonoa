@@ -13,6 +13,7 @@ export type WalletPass = {
   businessId: string;
   businessName: string;
   businessLogoUrl: string | null;
+  businessAccentColor: string;
   productId: string;
   productName: string;
   description: string;
@@ -114,6 +115,7 @@ export async function getWalletPasses(userId: string): Promise<WalletPass[]> {
       businessId: pass.business_id,
       businessName: business?.name ?? "Establecimiento",
       businessLogoUrl: business?.logo_url ?? null,
+      businessAccentColor: business?.accent_color ?? "#ff5a1f",
       productId: pass.loyalty_product_id,
       productName: product?.name ?? "Bono",
       description: product?.description ?? "Fidelización Bonoa",

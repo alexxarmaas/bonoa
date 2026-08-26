@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
-import { MdContentCopy, MdFullscreen, MdOpenInNew, MdPointOfSale, MdQrCodeScanner, MdStyle } from "react-icons/md";
+import { MdContentCopy, MdFullscreen, MdOpenInNew, MdPointOfSale, MdPrint, MdQrCodeScanner, MdStyle } from "react-icons/md";
 import AuthGuard from "@/components/auth/AuthGuard";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getBusinessAccess } from "@/lib/business-data";
@@ -99,6 +99,7 @@ function CounterContent() {
           <div className="mt-5 flex flex-wrap justify-center gap-2">
             <button type="button" onClick={() => void copyStorefront()} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-zinc-300"><MdContentCopy size={16} /> {copied ? "Copiado" : "Copiar enlace"}</button>
             <Link href={`/c/${business.slug}`} target="_blank" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-zinc-300"><MdOpenInNew size={16} /> Abrir</Link>
+            <Link href={`/business/${businessId}/print`} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-zinc-300"><MdPrint size={16} /> Cartel A4</Link>
           </div>
         </aside>
       </section>

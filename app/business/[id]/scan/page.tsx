@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { MdAddCard, MdArrowBack, MdCancel, MdCheckCircle, MdQrCode2, MdRemoveCircleOutline, MdStorefront } from "react-icons/md";
+import { MdAddCard, MdArrowBack, MdCancel, MdCheckCircle, MdClose, MdDoneAll, MdPointOfSale, MdQrCode2, MdRemoveCircleOutline, MdStorefront } from "react-icons/md";
 import AuthGuard from "@/components/auth/AuthGuard";
 import { useAuth } from "@/components/auth/AuthProvider";
 import QrScanner from "@/components/business/QrScanner";
@@ -63,10 +63,14 @@ function ScanContent() {
       .finally(() => {
         if (active) setLoading(false);
       });
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [businessId, user]);
+
+  useEffect(() => {
+    if (!success) return;
+    const timer = window.setTimeout(() => setSuccess(null), 4200);
+    return () => window.clearTimeout(timer);
+  }, [success]);
 
   const loadWallet = useCallback(async (identity: BonoaQrIdentity) => {
     setLookingUp(true);
@@ -101,6 +105,15 @@ function ScanContent() {
     acceptCode(rawCode);
   };
 
+  const resetWallet = () => {
+    setQr(null);
+    setRawCode("");
+    setPasses([]);
+    setRedeemValues({});
+    setError(null);
+    setSuccess(null);
+  };
+
   const onIssue = async () => {
     if (!qr || !selectedProduct) return;
     const product = products.find((item) => item.id === selectedProduct);
@@ -114,7 +127,7 @@ function ScanContent() {
     setSuccess(null);
     try {
       await issuePass(selectedProduct, qr);
-      setSuccess(`“${product.name}” asignado correctamente. El cliente ya puede verlo en su wallet.`);
+      setSuccess(`“${product.name}” asignado. Ya aparece en la wallet del cliente.`);
       setPasses(await lookupWalletPasses(businessId, qr));
     } catch (cause) {
       setError(friendlyError(cause, "No se pudo emitir el bono."));
@@ -139,12 +152,16 @@ function ScanContent() {
       return;
     }
 
+    const unitLabel = pass.product_type === "balance" ? "€" : units === 1 ? "uso" : "usos";
+    const confirmed = window.confirm(`¿Confirmar consumo?\n\n${pass.product_name}\n-${units} ${unitLabel}\nDisponible ahora: ${pass.remaining_units}\nQuedará: ${Number((pass.remaining_units - units).toFixed(2))}`);
+    if (!confirmed) return;
+
     setBusyId(pass.pass_id);
     setError(null);
     setSuccess(null);
     try {
       await redeemPass(pass.pass_id, units);
-      setSuccess(`Consumo aplicado: -${units}${pass.product_type === "balance" ? " €" : " uso(s)"}.`);
+      setSuccess(`Consumo registrado: -${units} ${unitLabel}. La wallet se ha actualizado.`);
       setPasses(await lookupWalletPasses(businessId, qr));
     } catch (cause) {
       setError(friendlyError(cause, "No se pudo aplicar el consumo."));
@@ -183,13 +200,16 @@ function ScanContent() {
   }
 
   return (
-    <main className="bonoa-shell min-h-screen">
-      <header className="flex items-center gap-4">
-        <Link href={`/business/${businessId}`} className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:text-white" aria-label="Volver"><MdArrowBack size={20} /></Link>
-        <div><p className="text-[10px] font-bold uppercase tracking-[0.24em] text-orange-300">{access.business.name}</p><h1 className="mt-1 text-2xl font-black tracking-tight text-white">Asignar / consumir</h1></div>
+    <main className="bonoa-shell min-h-screen pb-24">
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Link href={`/business/${businessId}`} className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:text-white" aria-label="Volver"><MdArrowBack size={20} /></Link>
+          <div><p className="text-[10px] font-bold uppercase tracking-[0.24em] text-orange-300">{access.business.name}</p><h1 className="mt-1 text-2xl font-black tracking-tight text-white">Asignar / consumir</h1></div>
+        </div>
+        <Link href={`/business/${businessId}/counter`} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-zinc-300"><MdPointOfSale size={18} /> Mostrador</Link>
       </header>
 
-      <div className="mt-5 rounded-2xl border border-white/8 bg-white/[0.025] p-4 text-xs leading-5 text-zinc-500">1. Escanea la wallet del cliente. 2. Asigna un bono nuevo o selecciona uno existente. 3. Confirma cada operación antes de aplicarla.</div>
+      <div className="mt-5 rounded-2xl border border-white/8 bg-white/[0.025] p-4 text-xs leading-5 text-zinc-500"><strong className="text-zinc-300">Flujo rápido:</strong> escanea la wallet → asigna o consume → confirma → termina con el cliente.</div>
 
       <section className="mt-6 grid gap-6 xl:grid-cols-[.85fr_1.15fr]">
         <div className="space-y-4">
@@ -205,16 +225,16 @@ function ScanContent() {
         <div>
           {!qr ? (
             <div className="grid min-h-[28rem] place-items-center rounded-[2rem] border border-dashed border-white/10 p-8 text-center">
-              <div><MdQrCode2 size={42} className="mx-auto text-zinc-700" /><p className="mt-4 text-sm font-bold text-white">Esperando una wallet</p><p className="mt-2 max-w-sm text-xs leading-5 text-zinc-600">Escanea el QR del cliente. Solo veremos los bonos vinculados a {access.business.name}.</p></div>
+              <div><MdQrCode2 size={42} className="mx-auto text-zinc-700" /><p className="mt-4 text-sm font-bold text-white">Listo para el siguiente cliente</p><p className="mt-2 max-w-sm text-xs leading-5 text-zinc-600">Escanea su QR de Bonoa. El comercio solo verá sus propios bonos, nunca el email ni otros datos personales.</p></div>
             </div>
           ) : (
             <div className="space-y-5">
               <div className="bonoa-card rounded-[1.6rem] p-5">
-                <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-orange-300">Wallet detectada</p><p className="mt-2 text-lg font-black text-white">{shortWallet}</p></div><span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-300"><MdCheckCircle size={14} /> válida</span></div>
+                <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-orange-300">Wallet detectada</p><p className="mt-2 text-lg font-black text-white">{shortWallet}</p></div><div className="flex flex-wrap items-center gap-2"><span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-300"><MdCheckCircle size={14} /> válida</span><button type="button" onClick={resetWallet} disabled={busyId !== null} className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-bold text-zinc-400 disabled:opacity-40"><MdClose size={14} /> Terminar cliente</button></div></div>
               </div>
 
               <section className="bonoa-card rounded-[1.6rem] p-5">
-                <div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-2xl border border-orange-400/15 bg-orange-400/[0.07] text-orange-300"><MdAddCard size={20} /></div><div><p className="text-sm font-black text-white">Asignar un bono nuevo</p><p className="mt-1 text-[10px] text-zinc-600">Te pediremos confirmación antes de emitirlo.</p></div></div>
+                <div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-2xl border border-orange-400/15 bg-orange-400/[0.07] text-orange-300"><MdAddCard size={20} /></div><div><p className="text-sm font-black text-white">Asignar un bono nuevo</p><p className="mt-1 text-[10px] text-zinc-600">Se mostrará un resumen antes de emitirlo.</p></div></div>
                 {products.length ? <div className="mt-4 flex flex-col gap-3 sm:flex-row"><select value={selectedProduct} onChange={(event) => setSelectedProduct(event.target.value)} className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm text-white outline-none focus:border-orange-400/40">{products.map((product) => <option key={product.id} value={product.id}>{product.name} · {product.initial_units} {product.type === "uses" ? "usos" : "€"} · {formatMoney(product.sale_price_cents, product.currency)}</option>)}</select><button type="button" onClick={() => void onIssue()} disabled={busyId !== null || !selectedProduct} className="brand-gradient rounded-full px-5 py-3 text-xs font-black text-white disabled:opacity-40">{busyId === "issue" ? "Asignando…" : "Asignar"}</button></div> : <div className="mt-4 rounded-2xl border border-amber-400/15 bg-amber-400/5 p-4 text-xs text-amber-100">No hay bonos activos. <Link href={`/business/${businessId}/catalog`} className="font-black underline">Crear uno en Catálogo</Link>.</div>}
               </section>
 
@@ -230,16 +250,17 @@ function ScanContent() {
                       </article>
                     );
                   })}
-                  {!passes.length ? <div className="rounded-[1.5rem] border border-dashed border-white/10 p-7 text-center text-xs text-zinc-600">Esta wallet todavía no tiene bonos de este negocio.</div> : null}
+                  {!passes.length ? <div className="rounded-[1.5rem] border border-dashed border-white/10 p-7 text-center"><p className="text-sm font-bold text-white">Cliente nuevo para este negocio</p><p className="mt-2 text-xs text-zinc-600">Todavía no tiene bonos aquí. Puedes asignarle uno desde el bloque superior.</p></div> : null}
                 </div>
               </section>
             </div>
           )}
 
           {error ? <div className="mt-4 rounded-2xl border border-red-400/15 bg-red-400/5 p-4 text-xs text-red-200">{error}</div> : null}
-          {success ? <div className="mt-4 rounded-2xl border border-emerald-400/15 bg-emerald-400/5 p-4 text-xs text-emerald-200">{success}</div> : null}
         </div>
       </section>
+
+      {success ? <div className="fixed inset-x-4 bottom-5 z-50 mx-auto flex max-w-xl items-start gap-3 rounded-[1.4rem] border border-emerald-400/20 bg-[#0c1711]/95 p-4 text-emerald-100 shadow-2xl backdrop-blur-xl"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-400/10 text-emerald-300"><MdDoneAll size={21} /></div><div className="min-w-0 flex-1"><p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-400">Operación completada</p><p className="mt-1 text-sm font-bold leading-5">{success}</p></div><button type="button" onClick={() => setSuccess(null)} className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-emerald-400/70 hover:bg-white/5"><MdClose size={18} /></button></div> : null}
 
       <footer className="mt-8 flex items-center gap-2 text-[11px] text-zinc-600"><MdStorefront size={15} /> Bonoa Business · La wallet no revela email ni datos personales al comercio.</footer>
     </main>
