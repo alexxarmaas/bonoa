@@ -3,10 +3,11 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MdAddBusiness, MdArrowBack, MdArrowForward, MdStorefront } from "react-icons/md";
+import { MdAddBusiness, MdArrowBack, MdArrowForward, MdGroups, MdStorefront } from "react-icons/md";
 import AuthGuard from "@/components/auth/AuthGuard";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { createBusiness, getMyBusinesses, slugifyBusinessName, type BusinessSummary } from "@/lib/business-data";
+import { friendlyError } from "@/lib/errors";
 
 function BusinessHomeContent() {
   const { user } = useAuth();
@@ -26,8 +27,8 @@ function BusinessHomeContent() {
       .then((items) => {
         if (active) setBusinesses(items);
       })
-      .catch(() => {
-        if (active) setError("No hemos podido cargar tus negocios.");
+      .catch((cause) => {
+        if (active) setError(friendlyError(cause, "No hemos podido cargar tus negocios."));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -51,8 +52,7 @@ function BusinessHomeContent() {
       const business = await createBusiness(name.trim(), normalizedSlug);
       router.push(`/business/${business.id}`);
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : "No se pudo crear el negocio.";
-      setError(message.includes("duplicate") ? "Ese identificador ya está en uso. Prueba otro." : message);
+      setError(friendlyError(cause, "No se pudo crear el negocio."));
     } finally {
       setCreating(false);
     }
@@ -73,19 +73,23 @@ function BusinessHomeContent() {
 
       <section className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {loading ? Array.from({ length: 2 }).map((_, index) => <div key={index} className="h-40 animate-pulse rounded-[1.6rem] border border-white/8 bg-white/[0.035]" />) : null}
-        {!loading && businesses.map((business) => (
-          <Link key={business.id} href={`/business/${business.id}`} className="bonoa-card group rounded-[1.6rem] p-5 transition hover:-translate-y-0.5 hover:border-white/20">
-            <div className="flex items-start justify-between gap-4">
-              <div className="grid h-11 w-11 place-items-center rounded-2xl border border-orange-400/15 bg-orange-400/[0.07] text-orange-300"><MdStorefront size={22} /></div>
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-400">{business.role}</span>
-            </div>
-            <h2 className="mt-5 text-xl font-black tracking-tight text-white">{business.name}</h2>
-            <p className="mt-1 text-xs text-zinc-600">bonoa.app/{business.slug}</p>
-            <div className="mt-6 flex items-center justify-between text-xs font-bold text-zinc-400">
-              Abrir panel <MdArrowForward size={18} className="transition group-hover:translate-x-1 group-hover:text-orange-300" />
-            </div>
-          </Link>
-        ))}
+        {!loading && businesses.map((business) => {
+          const canManageTeam = business.role === "owner" || business.role === "manager";
+          return (
+            <article key={business.id} className="bonoa-card rounded-[1.6rem] p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="grid h-11 w-11 place-items-center rounded-2xl border border-orange-400/15 bg-orange-400/[0.07] text-orange-300"><MdStorefront size={22} /></div>
+                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-400">{business.role}</span>
+              </div>
+              <h2 className="mt-5 text-xl font-black tracking-tight text-white">{business.name}</h2>
+              <p className="mt-1 text-xs text-zinc-600">bonoa.app/{business.slug}</p>
+              <div className="mt-6 flex flex-wrap gap-2">
+                <Link href={`/business/${business.id}`} className="inline-flex flex-1 items-center justify-between rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-zinc-300 transition hover:bg-white/8 hover:text-white">Abrir panel <MdArrowForward size={17} /></Link>
+                {canManageTeam ? <Link href={`/business/${business.id}/team`} className="inline-flex items-center gap-2 rounded-full border border-orange-400/20 bg-orange-400/[0.07] px-4 py-2.5 text-xs font-bold text-orange-200 transition hover:bg-orange-400/10"><MdGroups size={18} /> Equipo</Link> : null}
+              </div>
+            </article>
+          );
+        })}
       </section>
 
       {!loading && businesses.length === 0 ? (
