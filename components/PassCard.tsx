@@ -10,12 +10,21 @@ const statusMeta = {
   cancelled: { label: "Cancelado", className: "border-red-400/15 bg-red-400/5 text-red-300/70" },
 } as const;
 
+function formatIssuedPrice(pass: WalletPass) {
+  if (pass.issuedPriceCents === null) return null;
+  return new Intl.NumberFormat("es-ES", {
+    style: "currency",
+    currency: pass.issuedCurrency ?? "EUR",
+  }).format(pass.issuedPriceCents / 100);
+}
+
 export default function PassCard({ pass }: { pass: WalletPass }) {
   const used = pass.initialUnits - pass.remainingUnits;
   const percentage = pass.initialUnits > 0 ? Math.max(0, Math.min(100, (pass.remainingUnits / pass.initialUnits) * 100)) : 0;
   const status = statusMeta[pass.status];
   const isBalance = pass.productType === "balance";
   const faded = ["exhausted", "expired", "cancelled"].includes(pass.status);
+  const issuedPrice = formatIssuedPrice(pass);
 
   return (
     <Link
@@ -25,7 +34,7 @@ export default function PassCard({ pass }: { pass: WalletPass }) {
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-orange-300">{pass.businessName}</p>
-          <h2 className="mt-2 truncate text-xl font-black tracking-tight text-white">{pass.productName}</h2>
+          <div className="mt-2 flex flex-wrap items-center gap-2"><h2 className="truncate text-xl font-black tracking-tight text-white">{pass.productName}</h2>{issuedPrice ? <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[9px] font-black text-zinc-400">{issuedPrice}</span> : null}</div>
           <p className="mt-1 text-sm leading-6 text-zinc-500">{pass.description}</p>
         </div>
         <MdChevronRight size={24} className="mt-1 shrink-0 text-zinc-600 transition group-hover:translate-x-0.5 group-hover:text-orange-300" />
