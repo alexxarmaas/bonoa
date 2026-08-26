@@ -2,17 +2,21 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MdArrowBack, MdLockOutline, MdQrCode2 } from "react-icons/md";
+import { MdArrowBack, MdLockOutline, MdQrCode2, MdRefresh } from "react-icons/md";
 import AuthGuard from "@/components/auth/AuthGuard";
 import { useAuth } from "@/components/auth/AuthProvider";
 import WalletQr from "@/components/WalletQr";
-import { getWalletIdentity, type WalletIdentity } from "@/lib/wallet-data";
+import { friendlyError } from "@/lib/errors";
+import { getWalletIdentity, rotateWalletQr, type WalletIdentity } from "@/lib/wallet-data";
 
 function QrContent() {
   const { user, profile } = useAuth();
   const [wallet, setWallet] = useState<WalletIdentity | null>(null);
   const [loading, setLoading] = useState(true);
+  const [rotating, setRotating] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -21,9 +25,25 @@ function QrContent() {
         setWallet(data);
         setError(data ? null : "No encontramos tu wallet.");
       })
-      .catch(() => setError("No hemos podido cargar tu QR."))
+      .catch((cause) => setError(friendlyError(cause, "No hemos podido cargar tu QR.")))
       .finally(() => setLoading(false));
   }, [user]);
+
+  const rotate = async () => {
+    setRotating(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const nextWallet = await rotateWalletQr();
+      setWallet(nextWallet);
+      setConfirming(false);
+      setSuccess("QR renovado. El código anterior ya no es válido.");
+    } catch (cause) {
+      setError(friendlyError(cause, "No hemos podido renovar tu QR."));
+    } finally {
+      setRotating(false);
+    }
+  };
 
   const payload = wallet ? `bonoa:v${wallet.qrVersion}:${wallet.publicToken}` : "";
   const shortId = wallet ? `BN-${wallet.publicToken.slice(0, 4).toUpperCase()}-${wallet.publicToken.slice(-4).toUpperCase()}` : "";
@@ -48,10 +68,24 @@ function QrContent() {
 
         {wallet ? <p className="mt-5 text-xs font-bold tracking-[0.18em] text-zinc-400">{shortId}</p> : null}
         {profile?.display_name ? <p className="mt-2 text-xs text-zinc-600">{profile.display_name}</p> : null}
+
+        {success ? <p className="mt-5 w-full max-w-sm rounded-2xl border border-emerald-400/15 bg-emerald-400/5 px-4 py-3 text-xs text-emerald-200">{success}</p> : null}
+        {error && wallet ? <p className="mt-5 w-full max-w-sm rounded-2xl border border-red-400/15 bg-red-400/5 px-4 py-3 text-xs text-red-200">{error}</p> : null}
+
         <div className="mt-7 flex max-w-sm items-start gap-3 rounded-2xl border border-white/8 bg-white/[0.025] p-4 text-left">
           <MdLockOutline className="mt-0.5 shrink-0 text-zinc-500" size={18} />
-          <p className="text-xs leading-5 text-zinc-500">El QR solo contiene un identificador Bonoa rotatable. No incluye tu email, saldo ni información personal.</p>
+          <p className="text-xs leading-5 text-zinc-500">El QR solo contiene un identificador Bonoa rotatorio. No incluye tu email, saldo ni información personal.</p>
         </div>
+
+        {wallet ? (
+          <div className="mt-4 w-full max-w-sm rounded-2xl border border-white/8 bg-white/[0.02] p-4 text-left">
+            {!confirming ? (
+              <div className="flex items-center justify-between gap-4"><div><p className="text-xs font-bold text-white">¿Crees que alguien tiene una copia?</p><p className="mt-1 text-[11px] leading-5 text-zinc-600">Puedes invalidar el QR actual y generar otro al instante.</p></div><button type="button" onClick={() => setConfirming(true)} className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-2.5 text-[11px] font-bold text-zinc-300 hover:text-white"><MdRefresh size={16} /> Renovar</button></div>
+            ) : (
+              <div><p className="text-xs font-bold text-amber-200">El QR anterior dejará de funcionar inmediatamente.</p><p className="mt-1 text-[11px] leading-5 text-zinc-600">Tus bonos y saldos no cambian; solo cambia el identificador que enseñas al comercio.</p><div className="mt-3 flex gap-2"><button type="button" onClick={() => void rotate()} disabled={rotating} className="brand-gradient rounded-full px-4 py-2.5 text-[11px] font-black text-white disabled:opacity-50">{rotating ? "Renovando…" : "Sí, renovar QR"}</button><button type="button" onClick={() => setConfirming(false)} disabled={rotating} className="rounded-full border border-white/10 px-4 py-2.5 text-[11px] font-bold text-zinc-400">Cancelar</button></div></div>
+            )}
+          </div>
+        ) : null}
       </section>
     </main>
   );
