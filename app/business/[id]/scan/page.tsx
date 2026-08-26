@@ -28,6 +28,11 @@ type PendingIssue = {
   requestId: string;
 };
 
+type PendingRedemption = {
+  units: number;
+  requestId: string;
+};
+
 const statusLabel: Record<ScannedWalletPass["pass_status"], string> = {
   active: "activo",
   exhausted: "agotado",
@@ -59,6 +64,7 @@ function ScanContent() {
   const [redeemValues, setRedeemValues] = useState<Record<string, string>>({});
   const [scannerRestartToken, setScannerRestartToken] = useState(0);
   const pendingIssueRef = useRef<PendingIssue | null>(null);
+  const pendingRedemptionsRef = useRef<Record<string, PendingRedemption>>({});
 
   useEffect(() => {
     if (!user) return;
@@ -95,6 +101,7 @@ function ScanContent() {
     setError(null);
     setSuccess(null);
     pendingIssueRef.current = null;
+    pendingRedemptionsRef.current = {};
     try {
       const currentPasses = await lookupWalletPasses(businessId, identity);
       setQr(identity);
@@ -130,6 +137,7 @@ function ScanContent() {
 
   const resetWallet = () => {
     pendingIssueRef.current = null;
+    pendingRedemptionsRef.current = {};
     setQr(null);
     setRawCode("");
     setPasses([]);
@@ -143,8 +151,13 @@ function ScanContent() {
     if (!qr || !selectedProduct || busyId !== null) return;
     const product = products.find((item) => item.id === selectedProduct);
     if (!product) return;
+
     const priceLabel = formatMoney(product.sale_price_cents, product.currency);
-    const confirmed = window.confirm(`¿Asignar “${product.name}” a esta wallet?\n\n${product.initial_units} ${product.type === "uses" ? "usos" : "€ de saldo"}\n${priceLabel}\n${product.validity_days ? `Validez: ${product.validity_days} días` : "Sin caducidad"}`);
+    const sameActiveProductCount = passes.filter((pass) => pass.product_id === selectedProduct && pass.pass_status === "active").length;
+    const duplicateWarning = sameActiveProductCount > 0
+      ? `\n\nATENCIÓN: esta wallet ya tiene ${sameActiveProductCount} ${sameActiveProductCount === 1 ? "bono activo" : "bonos activos"} de este mismo tipo.`
+      : "";
+    const confirmed = window.confirm(`¿Asignar “${product.name}” a esta wallet?\n\n${product.initial_units} ${product.type === "uses" ? "usos" : "€ de saldo"}\n${priceLabel}\n${product.validity_days ? `Validez: ${product.validity_days} días` : "Sin caducidad"}${duplicateWarning}`);
     if (!confirmed) return;
 
     const walletKey = `${qr.version}:${qr.token}`;
@@ -190,16 +203,21 @@ function ScanContent() {
     const confirmed = window.confirm(`¿Confirmar consumo?\n\n${pass.product_name}\n-${units} ${unitLabel}\nDisponible ahora: ${pass.remaining_units}\nQuedará: ${Number((pass.remaining_units - units).toFixed(2))}`);
     if (!confirmed) return;
 
+    const previousRequest = pendingRedemptionsRef.current[pass.pass_id];
+    const requestId = previousRequest?.units === units ? previousRequest.requestId : crypto.randomUUID();
+    pendingRedemptionsRef.current[pass.pass_id] = { units, requestId };
+
     setBusyId(pass.pass_id);
     setError(null);
     setSuccess(null);
     try {
-      await redeemPass(pass.pass_id, units);
+      await redeemPass(pass.pass_id, units, requestId);
+      delete pendingRedemptionsRef.current[pass.pass_id];
       setSuccess(`Consumo registrado: -${units} ${unitLabel}. La wallet se ha actualizado.`);
       setPasses(await lookupWalletPasses(businessId, qr));
       vibrate([45, 55, 45]);
     } catch (cause) {
-      setError(friendlyError(cause, "No se pudo aplicar el consumo."));
+      setError(friendlyError(cause, "No se pudo confirmar el consumo. Si reintentas la misma cantidad, Bonoa reutilizará la operación para evitar un doble descuento."));
     } finally {
       setBusyId(null);
     }
@@ -282,7 +300,7 @@ function ScanContent() {
                     return (
                       <article key={pass.pass_id} className={`bonoa-card rounded-[1.5rem] p-5 ${usable ? "" : "opacity-55"}`}>
                         <div className="flex items-start justify-between gap-4"><div><p className="font-bold text-white">{pass.product_name}</p><p className="mt-1 text-xs text-zinc-500">{pass.remaining_units} / {pass.initial_units} {pass.product_type === "uses" ? "usos" : "€"}</p>{pass.expires_at ? <p className="mt-1 text-[10px] text-zinc-600">Caduca {new Date(pass.expires_at).toLocaleDateString("es-ES")}</p> : null}</div><span className="rounded-full border border-white/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-zinc-400">{statusLabel[pass.pass_status]}</span></div>
-                        {usable ? <div className="mt-4 flex flex-wrap items-end gap-3"><label className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">Descontar<input type="number" min={pass.product_type === "uses" ? "1" : "0.01"} max={pass.remaining_units} step={pass.product_type === "uses" ? "1" : "0.01"} value={redeemValues[pass.pass_id] ?? "1"} onChange={(event) => setRedeemValues((current) => ({ ...current, [pass.pass_id]: event.target.value }))} className="mt-1 block w-28 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-orange-400/40" /></label><button type="button" onClick={() => void onRedeem(pass)} disabled={busyId !== null} className="inline-flex items-center gap-2 rounded-full border border-orange-400/25 bg-orange-400/10 px-4 py-2.5 text-xs font-black text-orange-200 disabled:opacity-40"><MdRemoveCircleOutline size={17} /> {busyId === pass.pass_id ? "Aplicando…" : "Consumir"}</button>{canCancelPasses ? <button type="button" onClick={() => void onCancel(pass)} disabled={busyId !== null} className="inline-flex items-center gap-2 rounded-full border border-red-400/15 bg-red-400/5 px-4 py-2.5 text-xs font-bold text-red-200 disabled:opacity-40"><MdCancel size={17} /> {busyId === `cancel:${pass.pass_id}` ? "Cancelando…" : "Cancelar bono"}</button> : null}</div> : null}
+                        {usable ? <div className="mt-4 flex flex-wrap items-end gap-3"><label className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">Descontar<input type="number" min={pass.product_type === "uses" ? "1" : "0.01"} max={pass.remaining_units} step={pass.product_type === "uses" ? "1" : "0.01"} value={redeemValues[pass.pass_id] ?? "1"} onChange={(event) => { delete pendingRedemptionsRef.current[pass.pass_id]; setRedeemValues((current) => ({ ...current, [pass.pass_id]: event.target.value })); }} className="mt-1 block w-28 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-orange-400/40" /></label><button type="button" onClick={() => void onRedeem(pass)} disabled={busyId !== null} className="inline-flex items-center gap-2 rounded-full border border-orange-400/25 bg-orange-400/10 px-4 py-2.5 text-xs font-black text-orange-200 disabled:opacity-40"><MdRemoveCircleOutline size={17} /> {busyId === pass.pass_id ? "Aplicando…" : "Consumir"}</button>{canCancelPasses ? <button type="button" onClick={() => void onCancel(pass)} disabled={busyId !== null} className="inline-flex items-center gap-2 rounded-full border border-red-400/15 bg-red-400/5 px-4 py-2.5 text-xs font-bold text-red-200 disabled:opacity-40"><MdCancel size={17} /> {busyId === `cancel:${pass.pass_id}` ? "Cancelando…" : "Cancelar bono"}</button> : null}</div> : null}
                       </article>
                     );
                   })}
