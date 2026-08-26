@@ -7,21 +7,13 @@ import { MdCameraswitch, MdPauseCircleOutline, MdQrCodeScanner } from "react-ico
 type QrScannerProps = {
   onResult: (value: string) => void;
   active?: boolean;
-  restartToken?: number;
 };
 
-export default function QrScanner({ onResult, active = true, restartToken = 0 }: QrScannerProps) {
+export default function QrScanner({ onResult, active = true }: QrScannerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [enabled, setEnabled] = useState(active);
-
-  useEffect(() => {
-    controlsRef.current?.stop();
-    controlsRef.current = null;
-    setCameraError(null);
-    setEnabled(active);
-  }, [active, restartToken]);
+  const [enabled, setEnabled] = useState(true);
 
   useEffect(() => {
     if (!active || !enabled || !videoRef.current) return;
