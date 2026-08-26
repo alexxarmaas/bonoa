@@ -8,6 +8,7 @@ type ProductType = Database["public"]["Enums"]["loyalty_product_type"];
 type PassStatus = Database["public"]["Enums"]["pass_status"];
 
 export type BusinessSummary = BusinessRow & { role: BusinessRole };
+export type BusinessTeamMember = Database["public"]["Functions"]["business_members_for_management"]["Returns"][number];
 
 export type ScannedWalletPass = {
   pass_id: string;
@@ -87,6 +88,43 @@ export async function getBusinessAccess(businessId: string, userId: string) {
   if (!business || !membership) return null;
 
   return { business, role: membership.role };
+}
+
+export async function getBusinessTeam(businessId: string): Promise<BusinessTeamMember[]> {
+  const { data, error } = await supabase.rpc("business_members_for_management", {
+    target_business_id: businessId,
+  });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function addBusinessMember(businessId: string, email: string, role: BusinessRole) {
+  const { data, error } = await supabase.rpc("add_business_member", {
+    target_business_id: businessId,
+    member_email: email.trim(),
+    member_role: role,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function setBusinessMemberRole(businessId: string, userId: string, role: BusinessRole) {
+  const { data, error } = await supabase.rpc("set_business_member_role", {
+    target_business_id: businessId,
+    target_user_id: userId,
+    new_role: role,
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function removeBusinessMember(businessId: string, userId: string) {
+  const { data, error } = await supabase.rpc("remove_business_member", {
+    target_business_id: businessId,
+    target_user_id: userId,
+  });
+  if (error) throw error;
+  return data;
 }
 
 export async function getBusinessProducts(businessId: string): Promise<ProductRow[]> {
