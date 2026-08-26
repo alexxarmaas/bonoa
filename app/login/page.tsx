@@ -27,8 +27,13 @@ export default function LoginPage() {
 
     try {
       const params = new URLSearchParams(window.location.search);
-      if (params.get("sso_error") === "1") {
+      const ssoError = params.get("sso_error");
+      if (ssoError) {
         errorTimer = window.setTimeout(() => {
+          if (ssoError === "link_required") {
+            setError("Ya existe una cuenta Bonoa con ese email. Por seguridad no la vinculamos automáticamente desde Tramassso: entra con tu cuenta Bonoa mientras preparamos la vinculación explícita de ambas cuentas.");
+            return;
+          }
           setError("El acceso desde Tramassso ha caducado o no pudo validarse. Inténtalo de nuevo; el código solo puede usarse una vez.");
         }, 0);
       }
