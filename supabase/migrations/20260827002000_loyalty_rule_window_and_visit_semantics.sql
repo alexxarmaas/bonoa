@@ -205,9 +205,9 @@ begin
     where ar.business_id = target_business_id and g.pass_id is not null
     group by g.wallet_id
   ), wallets_in_business as (
-    select wallet_id from pass_stats
+    select ps.wallet_id as wallet_id from pass_stats ps
     union
-    select wallet_id from event_stats
+    select es.wallet_id as wallet_id from event_stats es
   ), combined as (
     select
       wb.wallet_id,
