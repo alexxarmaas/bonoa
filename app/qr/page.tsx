@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MdArrowBack, MdLockOutline, MdQrCode2, MdRefresh } from "react-icons/md";
+import { MdArrowBack, MdContentCopy, MdLockOutline, MdQrCode2, MdRefresh } from "react-icons/md";
 import AuthGuard from "@/components/auth/AuthGuard";
 import { useAuth } from "@/components/auth/AuthProvider";
 import WalletQr from "@/components/WalletQr";
@@ -15,6 +15,7 @@ function QrContent() {
   const [loading, setLoading] = useState(true);
   const [rotating, setRotating] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -37,6 +38,7 @@ function QrContent() {
       const nextWallet = await rotateWalletQr();
       setWallet(nextWallet);
       setConfirming(false);
+      setCopied(false);
       setSuccess("QR renovado. El código anterior ya no es válido.");
     } catch (cause) {
       setError(friendlyError(cause, "No hemos podido renovar tu QR."));
@@ -47,6 +49,17 @@ function QrContent() {
 
   const payload = wallet ? `bonoa:v${wallet.qrVersion}:${wallet.publicToken}` : "";
   const shortId = wallet ? `BN-${wallet.publicToken.slice(0, 4).toUpperCase()}-${wallet.publicToken.slice(-4).toUpperCase()}` : "";
+
+  const copyCode = async () => {
+    if (!payload) return;
+    try {
+      await navigator.clipboard.writeText(payload);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setError("No hemos podido copiar el código. Puedes enseñar el QR directamente.");
+    }
+  };
 
   return (
     <main className="bonoa-shell flex min-h-screen flex-col">
@@ -68,6 +81,7 @@ function QrContent() {
 
         {wallet ? <p className="mt-5 text-xs font-bold tracking-[0.18em] text-zinc-400">{shortId}</p> : null}
         {profile?.display_name ? <p className="mt-2 text-xs text-zinc-600">{profile.display_name}</p> : null}
+        {payload ? <button type="button" onClick={() => void copyCode()} className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-[11px] font-bold text-zinc-300 hover:bg-white/8 hover:text-white"><MdContentCopy size={16} /> {copied ? "Código copiado" : "Copiar código"}</button> : null}
 
         {success ? <p className="mt-5 w-full max-w-sm rounded-2xl border border-emerald-400/15 bg-emerald-400/5 px-4 py-3 text-xs text-emerald-200">{success}</p> : null}
         {error && wallet ? <p className="mt-5 w-full max-w-sm rounded-2xl border border-red-400/15 bg-red-400/5 px-4 py-3 text-xs text-red-200">{error}</p> : null}
