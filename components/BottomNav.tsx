@@ -12,11 +12,13 @@ const items = [
   { href: "/profile", label: "Perfil", icon: MdPersonOutline },
 ];
 
+const standaloneFlows = ["/login", "/register", "/forgot-password", "/reset-password", "/business"];
+
 export default function BottomNav() {
   const pathname = usePathname();
   const { user } = useAuth();
 
-  if (!user || pathname.startsWith("/login") || pathname.startsWith("/register")) return null;
+  if (!user || standaloneFlows.some((prefix) => pathname.startsWith(prefix))) return null;
 
   return (
     <nav className="safe-bottom fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-black/88 px-3 pt-2 backdrop-blur-xl md:hidden">
