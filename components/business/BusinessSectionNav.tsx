@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
-import { MdAssessment, MdDashboard, MdHistory, MdPeople, MdQrCodeScanner, MdStyle } from "react-icons/md";
+import { MdAssessment, MdDashboard, MdHistory, MdPeople, MdQrCodeScanner, MdSettings, MdStyle, MdViewList } from "react-icons/md";
 
 const items = [
   { suffix: "", label: "Resumen", icon: MdDashboard },
+  { suffix: "/catalog", label: "Catálogo", icon: MdViewList },
   { suffix: "/insights", label: "Métricas", icon: MdAssessment },
   { suffix: "/passes", label: "Bonos", icon: MdStyle },
   { suffix: "/activity", label: "Actividad", icon: MdHistory },
   { suffix: "/team", label: "Equipo", icon: MdPeople },
   { suffix: "/scan", label: "Asignar / consumir", icon: MdQrCodeScanner },
+  { suffix: "/settings", label: "Configuración", icon: MdSettings },
 ];
 
 export default function BusinessSectionNav() {
