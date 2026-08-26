@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MdArrowForward, MdCheckCircle } from "react-icons/md";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { friendlyError } from "@/lib/errors";
 import { supabase } from "@/lib/supabase/client";
 
 export default function RegisterPage() {
@@ -25,14 +26,20 @@ export default function RegisterPage() {
     event.preventDefault();
     setError(null);
     setNotice(null);
-    setLoading(true);
 
+    const displayName = name.trim();
+    if (displayName.length < 2) {
+      setError("El nombre debe tener al menos 2 caracteres.");
+      return;
+    }
+
+    setLoading(true);
     const emailRedirectTo = `${window.location.origin}/login?confirmed=1`;
     const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
+      email: email.trim(),
       password,
       options: {
-        data: { display_name: name.trim() },
+        data: { display_name: displayName },
         emailRedirectTo,
       },
     });
@@ -40,7 +47,7 @@ export default function RegisterPage() {
     setLoading(false);
 
     if (signUpError) {
-      setError(signUpError.message);
+      setError(friendlyError(signUpError, "No hemos podido crear tu cuenta."));
       return;
     }
 
@@ -68,7 +75,7 @@ export default function RegisterPage() {
           <form onSubmit={submit} className="mt-7 space-y-4">
             <label className="block">
               <span className="mb-2 block text-xs font-semibold text-zinc-400">Nombre</span>
-              <input required value={name} onChange={(event) => setName(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-zinc-700 focus:border-orange-500/50" placeholder="Tu nombre" />
+              <input required minLength={2} maxLength={80} value={name} onChange={(event) => setName(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-zinc-700 focus:border-orange-500/50" placeholder="Tu nombre" />
             </label>
             <label className="block">
               <span className="mb-2 block text-xs font-semibold text-zinc-400">Email</span>

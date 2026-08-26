@@ -50,6 +50,10 @@ function displayStatus(pass: PassRow): WalletPassStatus {
   return expiresAt - now <= fourteenDays ? "expiring_soon" : "active";
 }
 
+function mapWalletIdentity(data: Database["public"]["Tables"]["wallets"]["Row"]): WalletIdentity {
+  return { id: data.id, publicToken: data.public_token, qrVersion: data.qr_version };
+}
+
 export async function getWalletIdentity(userId: string): Promise<WalletIdentity | null> {
   const { data, error } = await supabase
     .from("wallets")
@@ -61,6 +65,13 @@ export async function getWalletIdentity(userId: string): Promise<WalletIdentity 
   if (!data) return null;
 
   return { id: data.id, publicToken: data.public_token, qrVersion: data.qr_version };
+}
+
+export async function rotateWalletQr(): Promise<WalletIdentity> {
+  const { data, error } = await supabase.rpc("rotate_wallet_qr");
+  if (error) throw error;
+  if (!data) throw new Error("No se pudo renovar el QR.");
+  return mapWalletIdentity(data);
 }
 
 export async function getWalletPasses(userId: string): Promise<WalletPass[]> {
