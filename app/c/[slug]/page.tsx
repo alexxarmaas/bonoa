@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { MdAccessTime, MdArrowForward, MdContentCopy, MdInstagram, MdLanguage, MdLocationOn, MdPhone, MdShare, MdStorefront } from "react-icons/md";
+import { FaInstagram } from "react-icons/fa";
+import { MdAccessTime, MdArrowForward, MdContentCopy, MdLanguage, MdLocationOn, MdPhone, MdShare, MdStorefront } from "react-icons/md";
 import { formatMoney, getPublicBusinessBySlug, type PilotBusiness, type PilotProduct } from "@/lib/pilot-data";
 
 type CatalogState = { business: PilotBusiness; products: PilotProduct[] };
@@ -83,7 +84,7 @@ export default function PublicBusinessCatalogPage() {
             <div className="flex flex-wrap gap-2 lg:max-w-sm lg:justify-end">
               {phoneHref ? <a href={phoneHref} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-zinc-300"><MdPhone size={16} /> Llamar</a> : null}
               {business.website_url ? <a href={business.website_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-zinc-300"><MdLanguage size={16} /> Web</a> : null}
-              {business.instagram_url ? <a href={business.instagram_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-zinc-300"><MdInstagram size={16} /> Instagram</a> : null}
+              {business.instagram_url ? <a href={business.instagram_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-zinc-300"><FaInstagram size={16} /> Instagram</a> : null}
             </div>
           </div>
 
