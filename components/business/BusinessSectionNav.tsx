@@ -10,7 +10,7 @@ const items = [
   { suffix: "/passes", label: "Bonos", icon: MdStyle },
   { suffix: "/activity", label: "Actividad", icon: MdHistory },
   { suffix: "/team", label: "Equipo", icon: MdPeople },
-  { suffix: "/scan", label: "Escanear", icon: MdQrCodeScanner },
+  { suffix: "/scan", label: "Asignar / consumir", icon: MdQrCodeScanner },
 ];
 
 export default function BusinessSectionNav() {
