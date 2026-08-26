@@ -14,6 +14,7 @@ import { friendlyError } from "@/lib/errors";
 const labels: Record<string, string> = {
   business_created: "Negocio creado",
   business_updated: "Ficha del negocio actualizada",
+  business_branding_updated: "Marca del negocio actualizada",
   member_added: "Miembro añadido",
   member_removed: "Miembro eliminado",
   member_role_changed: "Rol actualizado",
@@ -24,6 +25,12 @@ const labels: Record<string, string> = {
   pass_issued: "Bono emitido",
   pass_cancelled: "Bono cancelado",
   redemption: "Consumo registrado",
+  campaign_created: "Campaña creada",
+  campaign_updated: "Campaña actualizada",
+  campaign_claimed: "Campaña reclamada",
+  reward_rule_created: "Recompensa automática creada",
+  reward_rule_updated: "Recompensa automática actualizada",
+  reward_issued: "Recompensa automática entregada",
 };
 
 function describe(event: BusinessAuditEvent) {
@@ -31,9 +38,18 @@ function describe(event: BusinessAuditEvent) {
   if (event.event_type === "redemption" && "units" in meta) return `${String(meta.units)} unidades consumidas`;
   if (event.event_type === "pass_issued" && "initial_units" in meta) return `Saldo inicial: ${String(meta.initial_units)}`;
   if ((event.event_type === "product_created" || event.event_type === "product_updated") && "name" in meta) return String(meta.name);
-  if (event.event_type === "business_updated" && "name" in meta) return String(meta.name);
+  if ((event.event_type === "business_updated" || event.event_type === "business_branding_updated") && "name" in meta) return String(meta.name);
   if (event.event_type === "member_added" && "role" in meta) return `Rol asignado: ${String(meta.role)}`;
   if (event.event_type === "member_role_changed" && "to_role" in meta) return `Nuevo rol: ${String(meta.to_role)}`;
+  if (event.event_type === "campaign_created" && "name" in meta) return `Campaña “${String(meta.name)}” preparada para compartir`;
+  if (event.event_type === "campaign_updated" && "active" in meta) return String(meta.active) === "true" ? "Campaña reactivada" : "Campaña pausada";
+  if (event.event_type === "campaign_claimed" && "campaign_name" in meta) return `Un cliente reclamó “${String(meta.campaign_name)}”`;
+  if (event.event_type === "reward_rule_created" && "name" in meta && "threshold" in meta) return `${String(meta.name)} · cada ${String(meta.threshold)} consumos`;
+  if (event.event_type === "reward_rule_updated" && "active" in meta) return String(meta.active) === "true" ? "Regla reactivada" : "Regla pausada";
+  if (event.event_type === "reward_issued" && "rule_name" in meta) {
+    const recovered = "recovered" in meta && meta.recovered === true ? " · recuperado tras un intento pendiente" : "";
+    return `${String(meta.rule_name)} · hito ${String(meta.milestone ?? "")}${recovered}`;
+  }
   return event.pass_id ? `Bono ${event.pass_id.slice(0, 8)}…` : "Operación registrada";
 }
 
@@ -127,7 +143,7 @@ function ActivityContent() {
         <div className="flex items-center gap-3"><Link href={`/business/${businessId}`} className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/5 text-zinc-300" aria-label="Volver"><MdArrowBack size={20} /></Link><div><p className="text-[10px] font-bold uppercase tracking-[0.24em] text-orange-300">{businessName || "Bonoa Business"}</p><h1 className="mt-1 text-2xl font-black text-white">Actividad</h1></div></div>
         <button type="button" onClick={exportRows} disabled={loading || !events.length} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-3 text-xs font-bold text-zinc-300 disabled:opacity-35"><MdDownload size={18} /> Exportar CSV</button>
       </header>
-      <div className="mt-5 flex items-start gap-3 rounded-2xl border border-emerald-400/10 bg-emerald-400/[0.04] p-4"><MdShield className="mt-0.5 shrink-0 text-emerald-300" size={18} /><p className="text-xs leading-5 text-zinc-400">Bitácora inmutable generada en base de datos. Registra emisiones, consumos, anulaciones, cambios de catálogo, ficha comercial y gestión del equipo.</p></div>
+      <div className="mt-5 flex items-start gap-3 rounded-2xl border border-emerald-400/10 bg-emerald-400/[0.04] p-4"><MdShield className="mt-0.5 shrink-0 text-emerald-300" size={18} /><p className="text-xs leading-5 text-zinc-400">Bitácora inmutable generada en base de datos. Registra bonos, consumos, campañas, premios automáticos, cambios de catálogo y gestión del equipo.</p></div>
       {error ? <p className="mt-5 rounded-2xl border border-red-400/15 bg-red-400/5 p-4 text-xs text-red-200">{error}</p> : null}
       <section className="mt-7">
         {loading ? <div className="h-72 animate-pulse rounded-[1.6rem] border border-white/8 bg-white/[0.03]" /> : events.length ? <div className="bonoa-card overflow-hidden rounded-[1.6rem] divide-y divide-white/8">{events.map((event) => (
@@ -135,7 +151,7 @@ function ActivityContent() {
             <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-orange-400/10 bg-orange-400/[0.05] text-orange-300"><MdHistory size={19} /></div>
             <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-bold text-white">{labels[event.event_type] ?? event.event_type}</p><time className="text-[10px] text-zinc-600">{new Date(event.created_at).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}</time></div><p className="mt-1 text-xs text-zinc-500">{describe(event)}</p><div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-zinc-600"><MdPerson size={13} /><span>{event.actor_name || event.actor_email || "Sistema"}</span>{event.pass_id ? <span>· bono {event.pass_id.slice(0, 8)}</span> : null}</div></div>
           </article>
-        ))}</div> : <div className="rounded-[1.6rem] border border-dashed border-white/10 p-10 text-center"><MdHistory size={30} className="mx-auto text-zinc-700" /><p className="mt-4 text-sm font-bold text-white">Todavía no hay actividad</p><p className="mt-2 text-xs text-zinc-600">Cuando emitas o consumas un bono, la operación aparecerá aquí automáticamente.</p></div>}
+        ))}</div> : <div className="rounded-[1.6rem] border border-dashed border-white/10 p-10 text-center"><MdHistory size={30} className="mx-auto text-zinc-700" /><p className="mt-4 text-sm font-bold text-white">Todavía no hay actividad</p><p className="mt-2 text-xs text-zinc-600">Cuando emitas, consumas o premies a un cliente, la operación aparecerá aquí automáticamente.</p></div>}
         {!loading && events.length >= 50 ? <button type="button" disabled={loadingMore} onClick={() => void load(true)} className="mx-auto mt-5 block rounded-full border border-white/10 px-5 py-3 text-xs font-bold text-zinc-400 disabled:opacity-40">{loadingMore ? "Cargando…" : "Cargar más"}</button> : null}
       </section>
     </main>
