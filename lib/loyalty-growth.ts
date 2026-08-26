@@ -44,21 +44,6 @@ export type LoyaltyCampaign = {
   created_at: string;
 };
 
-export type RewardRule = {
-  rule_id: string;
-  rule_name: string;
-  trigger_product_id: string;
-  trigger_product_name: string;
-  reward_product_id: string;
-  reward_product_name: string;
-  every_n_redemptions: number;
-  max_rewards_per_wallet: number | null;
-  active: boolean;
-  rewards_issued: number;
-  customers_rewarded: number;
-  created_at: string;
-};
-
 export type AutomationRule = {
   rule_id: string;
   rule_name: string;
@@ -89,25 +74,6 @@ export type LoyaltyEventSummary = {
   visits_30d: number;
   spend_30d_cents: number;
   rewards_30d: number;
-};
-
-export type WalletRewardProgress = {
-  rule_id: string;
-  business_id: string;
-  business_name: string;
-  business_logo_url: string | null;
-  business_accent_color: string;
-  rule_name: string;
-  trigger_product_name: string;
-  reward_product_name: string;
-  every_n_redemptions: number;
-  qualifying_redemptions: number;
-  rewards_earned: number;
-  progress_in_cycle: number;
-  next_reward_in: number;
-  reward_pending: boolean;
-  completed: boolean;
-  max_rewards_per_wallet: number | null;
 };
 
 export type WalletLoyaltyProgress = {
@@ -194,12 +160,6 @@ export async function setCampaignActive(campaignId: string, active: boolean) {
   return assertData(data, error, "No se pudo actualizar la campaña.");
 }
 
-export async function getBusinessRewardRules(businessId: string): Promise<RewardRule[]> {
-  const { data, error } = await rpc<RewardRule[]>("business_loyalty_reward_rules", { target_business_id: businessId });
-  if (error) throw error;
-  return data ?? [];
-}
-
 export async function getBusinessAutomationRules(businessId: string): Promise<AutomationRule[]> {
   const { data, error } = await rpc<AutomationRule[]>("business_loyalty_automation_rules", { target_business_id: businessId });
   if (error) throw error;
@@ -251,29 +211,6 @@ export async function getWalletLoyaltyProgress(): Promise<WalletLoyaltyProgress[
   const { data, error } = await rpc<WalletLoyaltyProgress[]>("wallet_loyalty_progress");
   if (error) throw error;
   return data ?? [];
-}
-
-export async function getWalletRewardProgress(): Promise<WalletRewardProgress[]> {
-  const { data, error } = await rpc<WalletRewardProgress[]>("wallet_reward_progress");
-  if (error) throw error;
-  return data ?? [];
-}
-
-export async function createRewardRule(input: { businessId: string; triggerProductId: string; rewardProductId: string; name: string; every: number; maxRewards?: number | null }) {
-  const { data, error } = await rpc<Record<string, unknown>>("create_loyalty_reward_rule", {
-    target_business_id: input.businessId,
-    target_trigger_product_id: input.triggerProductId,
-    target_reward_product_id: input.rewardProductId,
-    rule_name: input.name.trim(),
-    redemption_threshold: input.every,
-    reward_limit: input.maxRewards ?? null,
-  });
-  return assertData(data, error, "No se pudo crear la recompensa automática.");
-}
-
-export async function setRewardRuleActive(ruleId: string, active: boolean) {
-  const { data, error } = await rpc<Record<string, unknown>>("set_loyalty_reward_rule_active", { target_rule_id: ruleId, next_active: active });
-  return assertData(data, error, "No se pudo actualizar la recompensa.");
 }
 
 export async function getPublicCampaign(code: string): Promise<PublicCampaign | null> {
