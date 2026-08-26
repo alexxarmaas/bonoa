@@ -18,7 +18,19 @@ export default function LoginPage() {
   const tramasssoEntry = `${process.env.NEXT_PUBLIC_TRAMASSSO_URL ?? "https://tramassso.com"}/bonoa`;
 
   useEffect(() => {
-    if (!authLoading && user) router.replace("/");
+    if (!authLoading && user) {
+      router.replace("/");
+      return;
+    }
+
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("sso_error") === "1") {
+        setError("El acceso desde Tramassso ha caducado o no pudo validarse. Inténtalo de nuevo; el código solo puede usarse una vez.");
+      }
+    } catch {
+      // La pantalla de acceso sigue disponible aunque no podamos leer la URL.
+    }
   }, [authLoading, user, router]);
 
   const submit = async (event: FormEvent) => {
