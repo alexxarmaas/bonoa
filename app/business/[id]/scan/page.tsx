@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { MdAddCard, MdArrowBack, MdCancel, MdCheckCircle, MdClose, MdDoneAll, MdPointOfSale, MdQrCode2, MdRemoveCircleOutline, MdStorefront } from "react-icons/md";
@@ -22,12 +22,24 @@ import { formatMoney, getPilotProducts, type PilotProduct } from "@/lib/pilot-da
 
 type Access = Awaited<ReturnType<typeof getBusinessAccess>>;
 
+type PendingIssue = {
+  walletKey: string;
+  productId: string;
+  requestId: string;
+};
+
 const statusLabel: Record<ScannedWalletPass["pass_status"], string> = {
   active: "activo",
   exhausted: "agotado",
   expired: "caducado",
   cancelled: "cancelado",
 };
+
+function vibrate(pattern: number | number[]) {
+  if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+    navigator.vibrate(pattern);
+  }
+}
 
 function ScanContent() {
   const { user } = useAuth();
@@ -45,6 +57,8 @@ function ScanContent() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [redeemValues, setRedeemValues] = useState<Record<string, string>>({});
+  const [scannerRestartToken, setScannerRestartToken] = useState(0);
+  const pendingIssueRef = useRef<PendingIssue | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -72,72 +86,92 @@ function ScanContent() {
     return () => window.clearTimeout(timer);
   }, [success]);
 
+  const rearmScannerSoon = useCallback(() => {
+    window.setTimeout(() => setScannerRestartToken((value) => value + 1), 700);
+  }, []);
+
   const loadWallet = useCallback(async (identity: BonoaQrIdentity) => {
     setLookingUp(true);
     setError(null);
     setSuccess(null);
+    pendingIssueRef.current = null;
     try {
       const currentPasses = await lookupWalletPasses(businessId, identity);
       setQr(identity);
       setPasses(currentPasses);
       setRedeemValues(Object.fromEntries(currentPasses.map((pass) => [pass.pass_id, pass.product_type === "uses" ? "1" : "1.00"])));
+      vibrate([30, 40, 30]);
     } catch (cause) {
       setQr(null);
       setPasses([]);
       setError(friendlyError(cause, "QR inválido o no accesible."));
+      rearmScannerSoon();
     } finally {
       setLookingUp(false);
     }
-  }, [businessId]);
+  }, [businessId, rearmScannerSoon]);
 
   const acceptCode = useCallback((value: string) => {
     setRawCode(value);
     const identity = parseBonoaQr(value);
     if (!identity) {
       setError("Este código no es un QR válido de Bonoa.");
+      rearmScannerSoon();
       return;
     }
     void loadWallet(identity);
-  }, [loadWallet]);
+  }, [loadWallet, rearmScannerSoon]);
 
   const submitManual = (event: FormEvent) => {
     event.preventDefault();
+    if (qr || lookingUp) return;
     acceptCode(rawCode);
   };
 
   const resetWallet = () => {
+    pendingIssueRef.current = null;
     setQr(null);
     setRawCode("");
     setPasses([]);
     setRedeemValues({});
     setError(null);
     setSuccess(null);
+    setScannerRestartToken((value) => value + 1);
   };
 
   const onIssue = async () => {
-    if (!qr || !selectedProduct) return;
+    if (!qr || !selectedProduct || busyId !== null) return;
     const product = products.find((item) => item.id === selectedProduct);
     if (!product) return;
     const priceLabel = formatMoney(product.sale_price_cents, product.currency);
     const confirmed = window.confirm(`¿Asignar “${product.name}” a esta wallet?\n\n${product.initial_units} ${product.type === "uses" ? "usos" : "€ de saldo"}\n${priceLabel}\n${product.validity_days ? `Validez: ${product.validity_days} días` : "Sin caducidad"}`);
     if (!confirmed) return;
 
+    const walletKey = `${qr.version}:${qr.token}`;
+    const previousRequest = pendingIssueRef.current;
+    const requestId = previousRequest?.walletKey === walletKey && previousRequest.productId === selectedProduct
+      ? previousRequest.requestId
+      : crypto.randomUUID();
+    pendingIssueRef.current = { walletKey, productId: selectedProduct, requestId };
+
     setBusyId("issue");
     setError(null);
     setSuccess(null);
     try {
-      await issuePass(selectedProduct, qr);
+      await issuePass(selectedProduct, qr, requestId);
+      pendingIssueRef.current = null;
       setSuccess(`“${product.name}” asignado. Ya aparece en la wallet del cliente.`);
       setPasses(await lookupWalletPasses(businessId, qr));
+      vibrate([45, 55, 45]);
     } catch (cause) {
-      setError(friendlyError(cause, "No se pudo emitir el bono."));
+      setError(friendlyError(cause, "No se pudo emitir el bono. Si reintentas, Bonoa reutilizará la misma operación para evitar duplicados."));
     } finally {
       setBusyId(null);
     }
   };
 
   const onRedeem = async (pass: ScannedWalletPass) => {
-    if (!qr) return;
+    if (!qr || busyId !== null) return;
     const units = Number(redeemValues[pass.pass_id] ?? "1");
     if (!Number.isFinite(units) || units <= 0) {
       setError("Introduce una cantidad válida.");
@@ -163,6 +197,7 @@ function ScanContent() {
       await redeemPass(pass.pass_id, units);
       setSuccess(`Consumo registrado: -${units} ${unitLabel}. La wallet se ha actualizado.`);
       setPasses(await lookupWalletPasses(businessId, qr));
+      vibrate([45, 55, 45]);
     } catch (cause) {
       setError(friendlyError(cause, "No se pudo aplicar el consumo."));
     } finally {
@@ -171,7 +206,7 @@ function ScanContent() {
   };
 
   const onCancel = async (pass: ScannedWalletPass) => {
-    if (!qr || (access?.role !== "owner" && access?.role !== "manager")) return;
+    if (!qr || busyId !== null || (access?.role !== "owner" && access?.role !== "manager")) return;
     const confirmed = window.confirm(`¿Cancelar el bono “${pass.product_name}”? El cliente dejará de poder utilizarlo.`);
     if (!confirmed) return;
 
@@ -183,6 +218,7 @@ function ScanContent() {
       await cancelPass(pass.pass_id);
       setSuccess(`Bono “${pass.product_name}” cancelado.`);
       setPasses(await lookupWalletPasses(businessId, qr));
+      vibrate([45, 55, 45]);
     } catch (cause) {
       setError(friendlyError(cause, "No se pudo cancelar el bono."));
     } finally {
@@ -209,23 +245,23 @@ function ScanContent() {
         <Link href={`/business/${businessId}/counter`} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-zinc-300"><MdPointOfSale size={18} /> Mostrador</Link>
       </header>
 
-      <div className="mt-5 rounded-2xl border border-white/8 bg-white/[0.025] p-4 text-xs leading-5 text-zinc-500"><strong className="text-zinc-300">Flujo rápido:</strong> escanea la wallet → asigna o consume → confirma → termina con el cliente.</div>
+      <div className="mt-5 rounded-2xl border border-white/8 bg-white/[0.025] p-4 text-xs leading-5 text-zinc-500"><strong className="text-zinc-300">Flujo rápido:</strong> escanea la wallet → asigna o consume → confirma → termina con el cliente. La cámara se rearma sola para el siguiente.</div>
 
       <section className="mt-6 grid gap-6 xl:grid-cols-[.85fr_1.15fr]">
         <div className="space-y-4">
-          <QrScanner onResult={acceptCode} />
+          <QrScanner onResult={acceptCode} active={!qr && !lookingUp} restartToken={scannerRestartToken} />
           <form onSubmit={submitManual} className="bonoa-card rounded-[1.5rem] p-4">
             <label className="text-xs font-bold text-zinc-400">Código manual
-              <input value={rawCode} onChange={(event) => setRawCode(event.target.value)} placeholder="bonoa:v1:..." className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 font-mono text-xs text-white outline-none focus:border-orange-400/40" />
+              <input disabled={Boolean(qr) || lookingUp} value={rawCode} onChange={(event) => setRawCode(event.target.value)} placeholder="bonoa:v1:..." className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 font-mono text-xs text-white outline-none focus:border-orange-400/40 disabled:opacity-40" />
             </label>
-            <button disabled={lookingUp || !rawCode.trim()} className="mt-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-zinc-200 disabled:opacity-40"><MdQrCode2 size={17} /> {lookingUp ? "Leyendo…" : "Usar código"}</button>
+            <button disabled={Boolean(qr) || lookingUp || !rawCode.trim()} className="mt-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-zinc-200 disabled:opacity-40"><MdQrCode2 size={17} /> {lookingUp ? "Leyendo…" : "Usar código"}</button>
           </form>
         </div>
 
         <div>
           {!qr ? (
             <div className="grid min-h-[28rem] place-items-center rounded-[2rem] border border-dashed border-white/10 p-8 text-center">
-              <div><MdQrCode2 size={42} className="mx-auto text-zinc-700" /><p className="mt-4 text-sm font-bold text-white">Listo para el siguiente cliente</p><p className="mt-2 max-w-sm text-xs leading-5 text-zinc-600">Escanea su QR de Bonoa. El comercio solo verá sus propios bonos, nunca el email ni otros datos personales.</p></div>
+              <div><MdQrCode2 size={42} className="mx-auto text-zinc-700" /><p className="mt-4 text-sm font-bold text-white">{lookingUp ? "Comprobando wallet…" : "Listo para el siguiente cliente"}</p><p className="mt-2 max-w-sm text-xs leading-5 text-zinc-600">Escanea su QR de Bonoa. El comercio solo verá sus propios bonos, nunca el email ni otros datos personales.</p></div>
             </div>
           ) : (
             <div className="space-y-5">
@@ -234,8 +270,8 @@ function ScanContent() {
               </div>
 
               <section className="bonoa-card rounded-[1.6rem] p-5">
-                <div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-2xl border border-orange-400/15 bg-orange-400/[0.07] text-orange-300"><MdAddCard size={20} /></div><div><p className="text-sm font-black text-white">Asignar un bono nuevo</p><p className="mt-1 text-[10px] text-zinc-600">Se mostrará un resumen antes de emitirlo.</p></div></div>
-                {products.length ? <div className="mt-4 flex flex-col gap-3 sm:flex-row"><select value={selectedProduct} onChange={(event) => setSelectedProduct(event.target.value)} className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm text-white outline-none focus:border-orange-400/40">{products.map((product) => <option key={product.id} value={product.id}>{product.name} · {product.initial_units} {product.type === "uses" ? "usos" : "€"} · {formatMoney(product.sale_price_cents, product.currency)}</option>)}</select><button type="button" onClick={() => void onIssue()} disabled={busyId !== null || !selectedProduct} className="brand-gradient rounded-full px-5 py-3 text-xs font-black text-white disabled:opacity-40">{busyId === "issue" ? "Asignando…" : "Asignar"}</button></div> : <div className="mt-4 rounded-2xl border border-amber-400/15 bg-amber-400/5 p-4 text-xs text-amber-100">No hay bonos activos. <Link href={`/business/${businessId}/catalog`} className="font-black underline">Crear uno en Catálogo</Link>.</div>}
+                <div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-2xl border border-orange-400/15 bg-orange-400/[0.07] text-orange-300"><MdAddCard size={20} /></div><div><p className="text-sm font-black text-white">Asignar un bono nuevo</p><p className="mt-1 text-[10px] text-zinc-600">La emisión está protegida frente a reintentos duplicados.</p></div></div>
+                {products.length ? <div className="mt-4 flex flex-col gap-3 sm:flex-row"><select value={selectedProduct} onChange={(event) => { pendingIssueRef.current = null; setSelectedProduct(event.target.value); }} disabled={busyId !== null} className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm text-white outline-none focus:border-orange-400/40 disabled:opacity-40">{products.map((product) => <option key={product.id} value={product.id}>{product.name} · {product.initial_units} {product.type === "uses" ? "usos" : "€"} · {formatMoney(product.sale_price_cents, product.currency)}</option>)}</select><button type="button" onClick={() => void onIssue()} disabled={busyId !== null || !selectedProduct} className="brand-gradient rounded-full px-5 py-3 text-xs font-black text-white disabled:opacity-40">{busyId === "issue" ? "Asignando…" : "Asignar"}</button></div> : <div className="mt-4 rounded-2xl border border-amber-400/15 bg-amber-400/5 p-4 text-xs text-amber-100">No hay bonos activos. <Link href={`/business/${businessId}/catalog`} className="font-black underline">Crear uno en Catálogo</Link>.</div>}
               </section>
 
               <section>
