@@ -4,6 +4,7 @@ import type { Database } from "@/lib/supabase/database.types";
 type PassRow = Database["public"]["Tables"]["passes"]["Row"];
 type ProductRow = Database["public"]["Tables"]["loyalty_products"]["Row"];
 type BusinessRow = Database["public"]["Tables"]["businesses"]["Row"];
+type PilotPassRow = PassRow & { issued_price_cents: number | null; issued_currency: string | null };
 
 export type WalletPassStatus = "active" | "expiring_soon" | "exhausted" | "expired" | "cancelled";
 
@@ -21,6 +22,8 @@ export type WalletPass = {
   purchasedAt: string;
   expiresAt: string | null;
   status: WalletPassStatus;
+  issuedPriceCents: number | null;
+  issuedCurrency: string | null;
 };
 
 export type WalletIdentity = {
@@ -104,6 +107,7 @@ export async function getWalletPasses(userId: string): Promise<WalletPass[]> {
   return passes.map((pass) => {
     const product = productMap.get(pass.loyalty_product_id);
     const business = businessMap.get(pass.business_id);
+    const pilotPass = pass as PilotPassRow;
 
     return {
       id: pass.id,
@@ -119,6 +123,8 @@ export async function getWalletPasses(userId: string): Promise<WalletPass[]> {
       purchasedAt: pass.purchased_at,
       expiresAt: pass.expires_at,
       status: displayStatus(pass),
+      issuedPriceCents: pilotPass.issued_price_cents ?? null,
+      issuedCurrency: pilotPass.issued_currency ?? null,
     };
   });
 }
