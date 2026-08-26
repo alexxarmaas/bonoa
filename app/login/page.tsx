@@ -3,10 +3,16 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MdArrowForward, MdDirectionsCar } from "react-icons/md";
+import { MdArrowForward } from "react-icons/md";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { friendlyError } from "@/lib/errors";
 import { supabase } from "@/lib/supabase/client";
+
+function safeNextPath() {
+  if (typeof window === "undefined") return "/";
+  const value = new URLSearchParams(window.location.search).get("next");
+  return value && value.startsWith("/") && !value.startsWith("//") ? value : "/";
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,35 +21,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const tramasssoEntry = `${process.env.NEXT_PUBLIC_TRAMASSSO_URL ?? "https://tramassso.com"}/bonoa`;
 
   useEffect(() => {
-    if (!authLoading && user) {
-      router.replace("/");
-      return;
-    }
-
-    let errorTimer: number | undefined;
-
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const ssoError = params.get("sso_error");
-      if (ssoError) {
-        errorTimer = window.setTimeout(() => {
-          if (ssoError === "link_required") {
-            setError("Ya existe una cuenta Bonoa con ese email. Por seguridad no la vinculamos automáticamente desde Tramassso: entra con tu cuenta Bonoa mientras preparamos la vinculación explícita de ambas cuentas.");
-            return;
-          }
-          setError("El acceso desde Tramassso ha caducado o no pudo validarse. Inténtalo de nuevo; el código solo puede usarse una vez.");
-        }, 0);
-      }
-    } catch {
-      // La pantalla de acceso sigue disponible aunque no podamos leer la URL.
-    }
-
-    return () => {
-      if (errorTimer !== undefined) window.clearTimeout(errorTimer);
-    };
+    if (!authLoading && user) router.replace(safeNextPath());
   }, [authLoading, user, router]);
 
   const submit = async (event: FormEvent) => {
@@ -59,7 +39,12 @@ export default function LoginPage() {
       return;
     }
 
-    router.replace("/");
+    router.replace(safeNextPath());
+  };
+
+  const goToRegister = () => {
+    const next = safeNextPath();
+    router.push(next === "/" ? "/register" : `/register?next=${encodeURIComponent(next)}`);
   };
 
   return (
@@ -73,14 +58,9 @@ export default function LoginPage() {
         <div className="bonoa-card rounded-[2rem] p-6 sm:p-8">
           <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-orange-300">Acceso</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight text-white">Entra en tu wallet</h1>
-          <p className="mt-3 text-sm leading-6 text-zinc-500">Consulta tus bonos y enseña tu QR cuando quieras utilizarlos.</p>
+          <p className="mt-3 text-sm leading-6 text-zinc-500">Consulta tus bonos, reclama recompensas y enseña tu QR cuando quieras utilizarlos.</p>
 
-          <a href={tramasssoEntry} className="mt-7 flex w-full items-center justify-center gap-2 rounded-full border border-red-400/20 bg-red-400/[0.07] px-5 py-3.5 text-xs font-black text-red-100 transition hover:bg-red-400/[0.12]">
-            <MdDirectionsCar size={18} /> Entrar desde Tramassso
-          </a>
-          <div className="my-5 flex items-center gap-3"><span className="h-px flex-1 bg-white/8" /><span className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-700">o con Bonoa</span><span className="h-px flex-1 bg-white/8" /></div>
-
-          <form onSubmit={submit} className="space-y-4">
+          <form onSubmit={submit} className="mt-7 space-y-4">
             <label className="block">
               <span className="mb-2 block text-xs font-semibold text-zinc-400">Email</span>
               <input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-zinc-700 focus:border-orange-500/50" placeholder="tu@email.com" />
@@ -100,7 +80,7 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="mt-6 text-center text-xs text-zinc-500">¿Aún no tienes cuenta? <Link href="/register" className="font-bold text-orange-300 hover:text-orange-200">Crear cuenta</Link></p>
+          <p className="mt-6 text-center text-xs text-zinc-500">¿Aún no tienes cuenta? <button type="button" onClick={goToRegister} className="font-bold text-orange-300 hover:text-orange-200">Crear cuenta</button></p>
         </div>
       </section>
     </main>
