@@ -4,14 +4,25 @@ import BottomNav from "@/components/BottomNav";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 
 export const metadata: Metadata = {
+  applicationName: "Bonoa",
   title: "Bonoa | Todos tus bonos en un solo lugar",
   description: "Tus bonos, beneficios y fidelizaciones. Un solo QR.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Bonoa",
+    statusBarStyle: "black-translucent",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export const viewport: Viewport = {
   themeColor: "#060606",
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
