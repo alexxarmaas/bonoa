@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { MdAddCard, MdArrowBack, MdCheckCircle, MdQrCode2, MdRemoveCircleOutline, MdStorefront } from "react-icons/md";
+import { MdAddCard, MdArrowBack, MdCancel, MdCheckCircle, MdQrCode2, MdRemoveCircleOutline, MdStorefront } from "react-icons/md";
 import AuthGuard from "@/components/auth/AuthGuard";
 import { useAuth } from "@/components/auth/AuthProvider";
 import QrScanner from "@/components/business/QrScanner";
@@ -18,6 +18,7 @@ import {
   type ScannedWalletPass,
 } from "@/lib/business-data";
 import { friendlyError } from "@/lib/errors";
+import { cancelPass } from "@/lib/pass-ops";
 import type { Database } from "@/lib/supabase/database.types";
 
 type Product = Database["public"]["Tables"]["loyalty_products"]["Row"];
@@ -148,7 +149,28 @@ function ScanContent() {
     }
   };
 
+  const onCancel = async (pass: ScannedWalletPass) => {
+    if (!qr || (access?.role !== "owner" && access?.role !== "manager")) return;
+    const confirmed = window.confirm(`¿Cancelar el bono “${pass.product_name}”? El cliente dejará de poder utilizarlo.`);
+    if (!confirmed) return;
+
+    const operationId = `cancel:${pass.pass_id}`;
+    setBusyId(operationId);
+    setError(null);
+    setSuccess(null);
+    try {
+      await cancelPass(pass.pass_id);
+      setSuccess(`Bono “${pass.product_name}” cancelado.`);
+      setPasses(await lookupWalletPasses(businessId, qr));
+    } catch (cause) {
+      setError(friendlyError(cause, "No se pudo cancelar el bono."));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const shortWallet = useMemo(() => qr ? `BN-${qr.token.slice(0, 4).toUpperCase()}-${qr.token.slice(-4).toUpperCase()}` : null, [qr]);
+  const canCancelPasses = access?.role === "owner" || access?.role === "manager";
 
   if (loading) return <main className="bonoa-shell"><div className="h-96 animate-pulse rounded-[2rem] border border-white/8 bg-white/[0.03]" /></main>;
 
@@ -193,7 +215,7 @@ function ScanContent() {
                     return (
                       <article key={pass.pass_id} className={`bonoa-card rounded-[1.5rem] p-5 ${usable ? "" : "opacity-55"}`}>
                         <div className="flex items-start justify-between gap-4"><div><p className="font-bold text-white">{pass.product_name}</p><p className="mt-1 text-xs text-zinc-500">{pass.remaining_units} / {pass.initial_units} {pass.product_type === "uses" ? "usos" : "€"}</p>{pass.expires_at ? <p className="mt-1 text-[10px] text-zinc-600">Caduca {new Date(pass.expires_at).toLocaleDateString("es-ES")}</p> : null}</div><span className="rounded-full border border-white/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-zinc-400">{statusLabel[pass.pass_status]}</span></div>
-                        {usable ? <div className="mt-4 flex flex-wrap items-end gap-3"><label className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">Descontar<input type="number" min={pass.product_type === "uses" ? "1" : "0.01"} max={pass.remaining_units} step={pass.product_type === "uses" ? "1" : "0.01"} value={redeemValues[pass.pass_id] ?? "1"} onChange={(event) => setRedeemValues((current) => ({ ...current, [pass.pass_id]: event.target.value }))} className="mt-1 block w-28 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-orange-400/40" /></label><button type="button" onClick={() => void onRedeem(pass)} disabled={busyId !== null} className="inline-flex items-center gap-2 rounded-full border border-orange-400/25 bg-orange-400/10 px-4 py-2.5 text-xs font-black text-orange-200 disabled:opacity-40"><MdRemoveCircleOutline size={17} /> {busyId === pass.pass_id ? "Aplicando…" : "Consumir"}</button></div> : null}
+                        {usable ? <div className="mt-4 flex flex-wrap items-end gap-3"><label className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">Descontar<input type="number" min={pass.product_type === "uses" ? "1" : "0.01"} max={pass.remaining_units} step={pass.product_type === "uses" ? "1" : "0.01"} value={redeemValues[pass.pass_id] ?? "1"} onChange={(event) => setRedeemValues((current) => ({ ...current, [pass.pass_id]: event.target.value }))} className="mt-1 block w-28 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-orange-400/40" /></label><button type="button" onClick={() => void onRedeem(pass)} disabled={busyId !== null} className="inline-flex items-center gap-2 rounded-full border border-orange-400/25 bg-orange-400/10 px-4 py-2.5 text-xs font-black text-orange-200 disabled:opacity-40"><MdRemoveCircleOutline size={17} /> {busyId === pass.pass_id ? "Aplicando…" : "Consumir"}</button>{canCancelPasses ? <button type="button" onClick={() => void onCancel(pass)} disabled={busyId !== null} className="inline-flex items-center gap-2 rounded-full border border-red-400/15 bg-red-400/5 px-4 py-2.5 text-xs font-bold text-red-200 disabled:opacity-40"><MdCancel size={17} /> {busyId === `cancel:${pass.pass_id}` ? "Cancelando…" : "Cancelar bono"}</button> : null}</div> : null}
                       </article>
                     );
                   })}

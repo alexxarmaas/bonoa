@@ -31,3 +31,34 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://dssxekvsmrlpkoqtgtmw.supabase.co' }}
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_PZm9WYJz_S5_b5ggR3HHuw_XQkewdNO' }}
         run: npm run check
+
+      - name: Start built app
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://dssxekvsmrlpkoqtgtmw.supabase.co' }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_PZm9WYJz_S5_b5ggR3HHuw_XQkewdNO' }}
+        run: |
+          nohup npm start -- --hostname 127.0.0.1 --port 3000 > /tmp/bonoa-next.log 2>&1 &
+          echo $! > /tmp/bonoa-next.pid
+
+      - name: Wait for app
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:3000/api/health > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/bonoa-next.log
+          exit 1
+
+      - name: Smoke tests
+        env:
+          SMOKE_BASE_URL: http://127.0.0.1:3000
+        run: npm run smoke
+
+      - name: Stop app
+        if: always()
+        run: |
+          if [ -f /tmp/bonoa-next.pid ]; then
+            kill "$(cat /tmp/bonoa-next.pid)" || true
+          fi
