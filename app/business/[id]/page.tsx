@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { MdArrowBack, MdArrowForward, MdHistory, MdQrCodeScanner, MdStorefront, MdStyle, MdToggleOff, MdToggleOn } from "react-icons/md";
+import { MdArrowBack, MdArrowForward, MdCampaign, MdGroups, MdHistory, MdQrCodeScanner, MdStorefront, MdStyle, MdToggleOff, MdToggleOn } from "react-icons/md";
 import AuthGuard from "@/components/auth/AuthGuard";
 import { useAuth } from "@/components/auth/AuthProvider";
 import {
@@ -100,6 +100,17 @@ function BusinessDashboardContent() {
         <div className="bonoa-card rounded-[1.5rem] p-5"><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Estado</p><p className="mt-3 text-sm font-black uppercase tracking-[0.16em] text-emerald-300">{access.business.status}</p></div>
       </section>
 
+      <section className="mt-6 grid gap-3 md:grid-cols-2">
+        <Link href={`/business/${businessId}/customers`} className="group overflow-hidden rounded-[1.6rem] border border-sky-400/12 bg-sky-400/[0.035] p-5 transition hover:border-sky-300/20 hover:bg-sky-400/[0.055] sm:p-6">
+          <div className="flex items-start justify-between gap-4"><div className="grid h-11 w-11 place-items-center rounded-2xl border border-sky-300/15 bg-sky-300/[0.06] text-sky-200"><MdGroups size={22} /></div><MdArrowForward className="text-zinc-700 transition group-hover:translate-x-1 group-hover:text-sky-200" size={20} /></div>
+          <p className="mt-5 text-[10px] font-black uppercase tracking-[0.18em] text-sky-200">Clientes</p><h2 className="mt-2 text-xl font-black text-white">Quién vuelve y quién se está perdiendo</h2><p className="mt-2 max-w-lg text-xs leading-5 text-zinc-500">Detecta clientes fieles, nuevos y en riesgo sin convertir el panel en un CRM lleno de datos personales.</p>
+        </Link>
+        <Link href={`/business/${businessId}/growth`} className="group overflow-hidden rounded-[1.6rem] border border-orange-400/15 bg-orange-400/[0.04] p-5 transition hover:border-orange-300/25 hover:bg-orange-400/[0.065] sm:p-6">
+          <div className="flex items-start justify-between gap-4"><div className="grid h-11 w-11 place-items-center rounded-2xl border border-orange-300/15 bg-orange-300/[0.06] text-orange-200"><MdCampaign size={22} /></div><MdArrowForward className="text-zinc-700 transition group-hover:translate-x-1 group-hover:text-orange-200" size={20} /></div>
+          <p className="mt-5 text-[10px] font-black uppercase tracking-[0.18em] text-orange-200">Fidelización</p><h2 className="mt-2 text-xl font-black text-white">Haz que volver tenga premio</h2><p className="mt-2 max-w-lg text-xs leading-5 text-zinc-500">Lanza promociones compartibles y automatiza reglas como “cada 5 visitas, una recompensa”.</p>
+        </Link>
+      </section>
+
       <section className="mt-8 grid gap-6 xl:grid-cols-[1.2fr_.8fr]">
         <div>
           <div className="mb-4 flex items-end justify-between gap-4">
@@ -131,7 +142,7 @@ function BusinessDashboardContent() {
         </div>
       </section>
 
-      <footer className="mt-8 flex items-center gap-2 text-[11px] text-zinc-600"><MdStorefront size={15} /> Panel de negocio · Los consumos se registran de forma inmutable.</footer>
+      <footer className="mt-8 flex items-center gap-2 text-[11px] text-zinc-600"><MdStorefront size={15} /> Panel de negocio · Los consumos y recompensas se registran de forma inmutable.</footer>
     </main>
   );
 }
