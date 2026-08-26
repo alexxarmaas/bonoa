@@ -1,37 +1,62 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { MdArrowBack, MdLockOutline, MdQrCode2 } from "react-icons/md";
+import AuthGuard from "@/components/auth/AuthGuard";
+import { useAuth } from "@/components/auth/AuthProvider";
 import WalletQr from "@/components/WalletQr";
-import { demoUser } from "@/lib/mock-data";
+import { getWalletIdentity, type WalletIdentity } from "@/lib/wallet-data";
 
-export default function QrPage() {
+function QrContent() {
+  const { user, profile } = useAuth();
+  const [wallet, setWallet] = useState<WalletIdentity | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    getWalletIdentity(user.id)
+      .then((data) => {
+        setWallet(data);
+        setError(data ? null : "No encontramos tu wallet.");
+      })
+      .catch(() => setError("No hemos podido cargar tu QR."))
+      .finally(() => setLoading(false));
+  }, [user]);
+
+  const payload = wallet ? `bonoa:v${wallet.qrVersion}:${wallet.publicToken}` : "";
+  const shortId = wallet ? `BN-${wallet.publicToken.slice(0, 4).toUpperCase()}-${wallet.publicToken.slice(-4).toUpperCase()}` : "";
+
   return (
     <main className="bonoa-shell flex min-h-screen flex-col">
       <header className="flex items-center justify-between">
-        <Link href="/" className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:text-white" aria-label="Volver">
-          <MdArrowBack size={20} />
-        </Link>
+        <Link href="/" className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:text-white" aria-label="Volver"><MdArrowBack size={20} /></Link>
         <span className="text-sm font-black tracking-tight text-white">Mi QR</span>
         <span className="h-10 w-10" />
       </header>
 
       <section className="mx-auto flex w-full max-w-lg flex-1 flex-col items-center justify-center py-10 text-center">
-        <div className="mb-6 grid h-14 w-14 place-items-center rounded-2xl border border-orange-400/20 bg-orange-400/10 text-orange-300">
-          <MdQrCode2 size={28} />
-        </div>
+        <div className="mb-6 grid h-14 w-14 place-items-center rounded-2xl border border-orange-400/20 bg-orange-400/10 text-orange-300"><MdQrCode2 size={28} /></div>
         <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-orange-300">Bonoa ID</p>
         <h1 className="mt-3 text-3xl font-black tracking-[-0.045em] text-white">Tu wallet, en un gesto.</h1>
         <p className="mt-3 max-w-sm text-sm leading-6 text-zinc-500">Muéstralo al establecimiento para identificar tu wallet y aplicar el bono correspondiente.</p>
 
         <div className="mt-8">
-          <WalletQr value={demoUser.qrToken} />
+          {loading ? <div className="h-[280px] w-[280px] animate-pulse rounded-[2rem] border border-white/10 bg-white/5" /> : payload ? <WalletQr value={payload} /> : <div className="grid h-[280px] w-[280px] place-items-center rounded-[2rem] border border-red-400/15 bg-red-400/5 p-8 text-sm text-red-200">{error}</div>}
         </div>
 
-        <p className="mt-5 text-xs font-bold tracking-[0.18em] text-zinc-400">{demoUser.publicId}</p>
+        {wallet ? <p className="mt-5 text-xs font-bold tracking-[0.18em] text-zinc-400">{shortId}</p> : null}
+        {profile?.display_name ? <p className="mt-2 text-xs text-zinc-600">{profile.display_name}</p> : null}
         <div className="mt-7 flex max-w-sm items-start gap-3 rounded-2xl border border-white/8 bg-white/[0.025] p-4 text-left">
           <MdLockOutline className="mt-0.5 shrink-0 text-zinc-500" size={18} />
-          <p className="text-xs leading-5 text-zinc-500">El QR no contiene tu saldo ni datos personales. En producción usará un token seguro y rotatorio.</p>
+          <p className="text-xs leading-5 text-zinc-500">El QR solo contiene un identificador Bonoa rotatable. No incluye tu email, saldo ni información personal.</p>
         </div>
       </section>
     </main>
   );
+}
+
+export default function QrPage() {
+  return <AuthGuard><QrContent /></AuthGuard>;
 }

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
+import { AuthProvider } from "@/components/auth/AuthProvider";
 
 export const metadata: Metadata = {
   title: "Bonoa | Todos tus bonos en un solo lugar",
@@ -17,8 +18,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="es">
       <body className="antialiased">
-        {children}
-        <BottomNav />
+        <AuthProvider>
+          {children}
+          <BottomNav />
+        </AuthProvider>
       </body>
     </html>
   );
