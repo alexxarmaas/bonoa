@@ -27,10 +27,14 @@ export default function RegisterPage() {
     setNotice(null);
     setLoading(true);
 
+    const emailRedirectTo = `${window.location.origin}/login?confirmed=1`;
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { display_name: name.trim() } },
+      options: {
+        data: { display_name: name.trim() },
+        emailRedirectTo,
+      },
     });
 
     setLoading(false);
