@@ -68,7 +68,7 @@ function optionalText(value: string, label: string, max: number) {
   return normalized;
 }
 
-function optionalHttpUrl(value: string, label: string, max = LIMITS.url) {
+function optionalHttpUrl(value: string, label: string, max: number = LIMITS.url) {
   const normalized = clean(value);
   if (!normalized) return null;
   if (normalized.length > max) throw new Error(`${label} es demasiado larga.`);
