@@ -10,31 +10,38 @@ type QrScannerProps = {
   restartToken?: number;
 };
 
-export default function QrScanner({ onResult, active = true }: QrScannerProps) {
+type CameraError = {
+  scanKey: string;
+  message: string;
+};
+
+export default function QrScanner({ onResult, active = true, restartToken = 0 }: QrScannerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const [enabled, setEnabled] = useState(true);
+  const [manualRestart, setManualRestart] = useState(0);
+  const [cameraError, setCameraError] = useState<CameraError | null>(null);
+  const scanKey = `${restartToken}:${manualRestart}`;
 
   useEffect(() => {
-    if (!active || !enabled || !videoRef.current) return;
+    if (!active || !videoRef.current) return;
 
     let cancelled = false;
+    let handled = false;
     const reader = new BrowserQRCodeReader(undefined, { delayBetweenScanAttempts: 180 });
 
     reader
       .decodeFromVideoDevice(undefined, videoRef.current, (result) => {
-        if (!result || cancelled) return;
+        if (!result || cancelled || handled) return;
+        handled = true;
         controlsRef.current?.stop();
         controlsRef.current = null;
-        setEnabled(false);
         if (typeof navigator !== "undefined" && "vibrate" in navigator) {
           navigator.vibrate(35);
         }
         onResult(result.getText());
       })
       .then((controls) => {
-        if (cancelled || !active) {
+        if (cancelled || !active || handled) {
           controls.stop();
           return;
         }
@@ -42,8 +49,10 @@ export default function QrScanner({ onResult, active = true }: QrScannerProps) {
       })
       .catch(() => {
         if (!cancelled) {
-          setEnabled(false);
-          setCameraError("No pudimos abrir la cámara. Revisa el permiso o pega el código manualmente.");
+          setCameraError({
+            scanKey,
+            message: "No pudimos abrir la cámara. Revisa el permiso o pega el código manualmente.",
+          });
         }
       });
 
@@ -52,16 +61,16 @@ export default function QrScanner({ onResult, active = true }: QrScannerProps) {
       controlsRef.current?.stop();
       controlsRef.current = null;
     };
-  }, [active, enabled, onResult]);
+  }, [active, onResult, scanKey]);
 
   const restart = () => {
     if (!active) return;
     controlsRef.current?.stop();
     controlsRef.current = null;
-    setCameraError(null);
-    setEnabled(false);
-    window.setTimeout(() => setEnabled(true), 0);
+    setManualRestart((value) => value + 1);
   };
+
+  const visibleError = cameraError?.scanKey === scanKey ? cameraError.message : null;
 
   return (
     <div className="overflow-hidden rounded-[1.6rem] border border-white/10 bg-black">
@@ -78,7 +87,7 @@ export default function QrScanner({ onResult, active = true }: QrScannerProps) {
               <p className="mt-1 text-[10px] leading-5 text-zinc-500">La cámara se reactivará al terminar con este cliente.</p>
             </div>
           </div>
-        ) : !enabled ? (
+        ) : visibleError ? (
           <div className="absolute inset-0 grid place-items-center bg-black/75"><MdQrCodeScanner size={42} className="text-orange-300" /></div>
         ) : null}
       </div>
@@ -97,7 +106,7 @@ export default function QrScanner({ onResult, active = true }: QrScannerProps) {
           <MdCameraswitch size={20} />
         </button>
       </div>
-      {cameraError ? <p className="border-t border-white/8 px-4 py-3 text-xs text-amber-200/80">{cameraError}</p> : null}
+      {visibleError ? <p className="border-t border-white/8 px-4 py-3 text-xs text-amber-200/80">{visibleError}</p> : null}
     </div>
   );
 }
