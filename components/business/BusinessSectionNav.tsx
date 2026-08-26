@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
-import { MdAssessment, MdDashboard, MdHistory, MdPeople, MdQrCodeScanner, MdSettings, MdStyle, MdViewList } from "react-icons/md";
+import { MdAssessment, MdDashboard, MdHistory, MdPeople, MdPointOfSale, MdQrCodeScanner, MdSettings, MdStyle, MdViewList } from "react-icons/md";
 
 const items = [
   { suffix: "", label: "Resumen", icon: MdDashboard },
+  { suffix: "/counter", label: "Mostrador", icon: MdPointOfSale },
   { suffix: "/catalog", label: "Catálogo", icon: MdViewList },
   { suffix: "/insights", label: "Métricas", icon: MdAssessment },
   { suffix: "/passes", label: "Bonos", icon: MdStyle },

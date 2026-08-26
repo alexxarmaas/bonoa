@@ -27,6 +27,17 @@ export type BusinessDashboardMetrics = {
   expiring_30d: number;
 };
 
+export type BusinessCommercialMetrics = {
+  issued_value_total_cents: number;
+  issued_value_30d_cents: number;
+  average_issued_price_cents: number;
+  priced_passes: number;
+  active_wallets: number;
+  wallets_30d: number;
+  passes_30d: number;
+  average_consumed_percent: number;
+};
+
 export type BusinessProductMetric = {
   product_id: string;
   product_name: string;
@@ -84,6 +95,22 @@ export async function getBusinessDashboardMetrics(businessId: string): Promise<B
     units_redeemed_30d: 0,
     issued_30d: 0,
     expiring_30d: 0,
+  };
+}
+
+export async function getBusinessCommercialMetrics(businessId: string): Promise<BusinessCommercialMetrics> {
+  const { data, error } = await rpc("business_commercial_metrics", { target_business_id: businessId });
+  if (error) throw error;
+  const rows = unwrap<BusinessCommercialMetrics[]>(data ?? []);
+  return rows[0] ?? {
+    issued_value_total_cents: 0,
+    issued_value_30d_cents: 0,
+    average_issued_price_cents: 0,
+    priced_passes: 0,
+    active_wallets: 0,
+    wallets_30d: 0,
+    passes_30d: 0,
+    average_consumed_percent: 0,
   };
 }
 

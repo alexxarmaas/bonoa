@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { MdArrowBack, MdAssessment, MdBolt, MdGroups, MdSchedule, MdStyle } from "react-icons/md";
+import { MdArrowBack, MdAssessment, MdBolt, MdEuro, MdGroups, MdSchedule, MdStyle, MdTrendingUp } from "react-icons/md";
 import AuthGuard from "@/components/auth/AuthGuard";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getBusinessAccess } from "@/lib/business-data";
-import { getBusinessDashboardMetrics, getBusinessProductMetrics, type BusinessDashboardMetrics, type BusinessProductMetric } from "@/lib/business-analytics";
+import { getBusinessCommercialMetrics, getBusinessDashboardMetrics, getBusinessProductMetrics, type BusinessCommercialMetrics, type BusinessDashboardMetrics, type BusinessProductMetric } from "@/lib/business-analytics";
 import { friendlyError } from "@/lib/errors";
+import { formatMoney } from "@/lib/pilot-data";
 
 const zero: BusinessDashboardMetrics = {
   total_passes: 0,
@@ -25,12 +26,24 @@ const zero: BusinessDashboardMetrics = {
   expiring_30d: 0,
 };
 
+const commercialZero: BusinessCommercialMetrics = {
+  issued_value_total_cents: 0,
+  issued_value_30d_cents: 0,
+  average_issued_price_cents: 0,
+  priced_passes: 0,
+  active_wallets: 0,
+  wallets_30d: 0,
+  passes_30d: 0,
+  average_consumed_percent: 0,
+};
+
 function InsightsContent() {
   const { user } = useAuth();
   const params = useParams<{ id: string }>();
   const businessId = params.id;
   const [businessName, setBusinessName] = useState("");
   const [metrics, setMetrics] = useState<BusinessDashboardMetrics>(zero);
+  const [commercial, setCommercial] = useState<BusinessCommercialMetrics>(commercialZero);
   const [products, setProducts] = useState<BusinessProductMetric[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,13 +56,15 @@ function InsightsContent() {
       try {
         const access = await getBusinessAccess(businessId, user.id);
         if (!access) throw new Error("No tienes acceso a este negocio.");
-        const [currentMetrics, currentProducts] = await Promise.all([
+        const [currentMetrics, currentCommercial, currentProducts] = await Promise.all([
           getBusinessDashboardMetrics(businessId),
+          getBusinessCommercialMetrics(businessId),
           getBusinessProductMetrics(businessId),
         ]);
         if (cancelled) return;
         setBusinessName(access.business.name);
         setMetrics(currentMetrics);
+        setCommercial(currentCommercial);
         setProducts(currentProducts);
       } catch (cause) {
         if (!cancelled) setError(friendlyError(cause, "No hemos podido cargar las métricas."));
@@ -62,7 +77,7 @@ function InsightsContent() {
 
   const cards = [
     { label: "Bonos activos", value: metrics.active_passes, note: `${metrics.total_passes} emitidos en total`, icon: MdStyle },
-    { label: "Clientes únicos", value: metrics.unique_wallets, note: `${metrics.issued_30d} bonos emitidos en 30 días`, icon: MdGroups },
+    { label: "Clientes únicos", value: metrics.unique_wallets, note: `${commercial.active_wallets} con bono activo`, icon: MdGroups },
     { label: "Consumos 7 días", value: metrics.redemptions_7d, note: `${metrics.redemptions_today} hoy`, icon: MdBolt },
     { label: "Caducan en 30 días", value: metrics.expiring_30d, note: `${metrics.expired_passes} ya caducados`, icon: MdSchedule },
   ];
@@ -75,6 +90,16 @@ function InsightsContent() {
       {loading ? <div className="mt-7 h-72 animate-pulse rounded-[2rem] border border-white/8 bg-white/[0.03]" /> : <>
         <section className="mt-7 grid grid-cols-2 gap-3 xl:grid-cols-4">
           {cards.map(({ label, value, note, icon: Icon }) => <article key={label} className="bonoa-card rounded-[1.5rem] p-5"><div className="flex items-center justify-between gap-3"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">{label}</p><Icon className="text-orange-300" size={18} /></div><p className="mt-3 text-3xl font-black text-white">{value}</p><p className="mt-2 text-[10px] text-zinc-600">{note}</p></article>)}
+        </section>
+
+        <section className="mt-6 rounded-[2rem] border border-orange-400/10 bg-orange-400/[0.035] p-5 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-300">Lectura comercial</p><h2 className="mt-1 text-xl font-black text-white">Valor generado por los bonos</h2></div><span className="rounded-full border border-orange-400/15 bg-orange-400/5 px-3 py-1.5 text-[10px] font-bold text-orange-200">No equivale a cobros procesados</span></div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <article className="rounded-[1.4rem] border border-white/8 bg-black/20 p-5"><MdEuro size={18} className="text-orange-300" /><p className="mt-3 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">Valor emitido total</p><p className="mt-2 text-2xl font-black text-white">{formatMoney(Math.round(commercial.issued_value_total_cents))}</p><p className="mt-1 text-[10px] text-zinc-600">Suma del precio registrado al emitir.</p></article>
+            <article className="rounded-[1.4rem] border border-white/8 bg-black/20 p-5"><MdTrendingUp size={18} className="text-orange-300" /><p className="mt-3 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">Últimos 30 días</p><p className="mt-2 text-2xl font-black text-white">{formatMoney(Math.round(commercial.issued_value_30d_cents))}</p><p className="mt-1 text-[10px] text-zinc-600">{commercial.passes_30d} bonos · {commercial.wallets_30d} clientes.</p></article>
+            <article className="rounded-[1.4rem] border border-white/8 bg-black/20 p-5"><MdAssessment size={18} className="text-orange-300" /><p className="mt-3 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">Precio medio</p><p className="mt-2 text-2xl font-black text-white">{formatMoney(Math.round(commercial.average_issued_price_cents))}</p><p className="mt-1 text-[10px] text-zinc-600">Calculado sobre {commercial.priced_passes} bonos con precio.</p></article>
+            <article className="rounded-[1.4rem] border border-white/8 bg-black/20 p-5"><MdBolt size={18} className="text-orange-300" /><p className="mt-3 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">Consumo medio</p><p className="mt-2 text-2xl font-black text-white">{Math.round(commercial.average_consumed_percent)}%</p><p className="mt-1 text-[10px] text-zinc-600">Progreso medio de bonos no cancelados.</p></article>
+          </div>
         </section>
 
         <section className="mt-6 grid gap-4 lg:grid-cols-3">
