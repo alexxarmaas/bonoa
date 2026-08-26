@@ -7,6 +7,7 @@ import { MdCameraswitch, MdPauseCircleOutline, MdQrCodeScanner } from "react-ico
 type QrScannerProps = {
   onResult: (value: string) => void;
   active?: boolean;
+  restartToken?: number;
 };
 
 export default function QrScanner({ onResult, active = true }: QrScannerProps) {
