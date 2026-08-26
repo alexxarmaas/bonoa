@@ -3,9 +3,20 @@ import type { Database } from "@/lib/supabase/database.types";
 
 type BusinessRow = Database["public"]["Tables"]["businesses"]["Row"];
 type ProductRow = Database["public"]["Tables"]["loyalty_products"]["Row"];
+type PassRow = Database["public"]["Tables"]["passes"]["Row"];
 type BusinessRole = Database["public"]["Enums"]["business_role"];
 type ProductType = Database["public"]["Enums"]["loyalty_product_type"];
 type PassStatus = Database["public"]["Enums"]["pass_status"];
+
+type IdempotentIssueRpc = (
+  fn: "issue_pass_idempotent",
+  args: {
+    target_product_id: string;
+    target_wallet_token: string;
+    target_qr_version: number;
+    request_id: string;
+  },
+) => PromiseLike<{ data: PassRow | null; error: { message: string } | null }>;
 
 export type BusinessSummary = BusinessRow & { role: BusinessRole };
 export type BusinessTeamMember = Database["public"]["Functions"]["business_members_for_management"]["Returns"][number];
@@ -217,22 +228,28 @@ export async function lookupWalletPasses(
   return (data ?? []).map((pass) => ({ ...pass, expires_at: pass.expires_at ?? null }));
 }
 
-export async function issuePass(productId: string, qr: BonoaQrIdentity) {
-  const { data, error } = await supabase.rpc("issue_pass", {
+export async function issuePass(productId: string, qr: BonoaQrIdentity, requestId = crypto.randomUUID()) {
+  // database.types.ts is generated from migrations during release preparation. The
+  // live project already exposes this RPC and it intentionally returns the same
+  // passes row shape as issue_pass.
+  const issuePassIdempotent = supabase.rpc as unknown as IdempotentIssueRpc;
+  const { data, error } = await issuePassIdempotent("issue_pass_idempotent", {
     target_product_id: productId,
     target_wallet_token: qr.token,
     target_qr_version: qr.version,
+    request_id: requestId,
   });
 
   if (error) throw error;
+  if (!data) throw new Error("No se pudo emitir el bono.");
   return data;
 }
 
-export async function redeemPass(passId: string, units: number) {
+export async function redeemPass(passId: string, units: number, requestId = crypto.randomUUID()) {
   const { data, error } = await supabase.rpc("redeem_pass", {
     target_pass_id: passId,
     units_to_redeem: units,
-    request_id: crypto.randomUUID(),
+    request_id: requestId,
   });
 
   if (error) throw error;
