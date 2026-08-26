@@ -3,11 +3,13 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MdAddBusiness, MdArrowBack, MdArrowForward, MdGroups, MdStorefront } from "react-icons/md";
+import { MdAddBusiness, MdArrowBack, MdArrowForward, MdGroups, MdOpenInNew, MdPointOfSale, MdStorefront } from "react-icons/md";
 import AuthGuard from "@/components/auth/AuthGuard";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { createBusiness, getMyBusinesses, slugifyBusinessName, type BusinessSummary } from "@/lib/business-data";
 import { friendlyError } from "@/lib/errors";
+
+const roleLabel = { owner: "Propietario", manager: "Manager", staff: "Staff" } as const;
 
 function BusinessHomeContent() {
   const { user } = useAuth();
@@ -24,18 +26,10 @@ function BusinessHomeContent() {
     if (!user) return;
     let active = true;
     getMyBusinesses(user.id)
-      .then((items) => {
-        if (active) setBusinesses(items);
-      })
-      .catch((cause) => {
-        if (active) setError(friendlyError(cause, "No hemos podido cargar tus negocios."));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
+      .then((items) => { if (active) setBusinesses(items); })
+      .catch((cause) => { if (active) setError(friendlyError(cause, "No hemos podido cargar tus negocios.")); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [user]);
 
   const suggestedSlug = useMemo(() => slugifyBusinessName(name), [name]);
@@ -59,7 +53,7 @@ function BusinessHomeContent() {
   };
 
   return (
-    <main className="bonoa-shell min-h-screen">
+    <main className="bonoa-shell min-h-screen pb-24">
       <header className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link href="/profile" className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:text-white" aria-label="Volver"><MdArrowBack size={20} /></Link>
@@ -72,20 +66,28 @@ function BusinessHomeContent() {
       </header>
 
       <section className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {loading ? Array.from({ length: 2 }).map((_, index) => <div key={index} className="h-40 animate-pulse rounded-[1.6rem] border border-white/8 bg-white/[0.035]" />) : null}
+        {loading ? Array.from({ length: 2 }).map((_, index) => <div key={index} className="h-52 animate-pulse rounded-[1.8rem] border border-white/8 bg-white/[0.035]" />) : null}
         {!loading && businesses.map((business) => {
           const canManageTeam = business.role === "owner" || business.role === "manager";
+          const accent = business.accent_color || "#ff5a1f";
           return (
-            <article key={business.id} className="bonoa-card rounded-[1.6rem] p-5">
+            <article key={business.id} className="bonoa-card relative overflow-hidden rounded-[1.8rem] p-5">
+              <div className="absolute inset-x-0 top-0 h-1" style={{ background: accent }} />
               <div className="flex items-start justify-between gap-4">
-                <div className="grid h-11 w-11 place-items-center rounded-2xl border border-orange-400/15 bg-orange-400/[0.07] text-orange-300"><MdStorefront size={22} /></div>
-                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-400">{business.role}</span>
+                <div className="grid h-14 w-14 place-items-center overflow-hidden rounded-2xl border bg-black/30" style={{ borderColor: `${accent}40` }}>{business.logo_url ? <img src={business.logo_url} alt={`Logo de ${business.name}`} className="h-full w-full object-contain p-1.5" /> : <MdStorefront size={25} style={{ color: accent }} />}</div>
+                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-400">{roleLabel[business.role]}</span>
               </div>
               <h2 className="mt-5 text-xl font-black tracking-tight text-white">{business.name}</h2>
-              <p className="mt-1 text-xs text-zinc-600">bonoa.app/{business.slug}</p>
-              <div className="mt-6 flex flex-wrap gap-2">
-                <Link href={`/business/${business.id}`} className="inline-flex flex-1 items-center justify-between rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-zinc-300 transition hover:bg-white/8 hover:text-white">Abrir panel <MdArrowForward size={17} /></Link>
-                {canManageTeam ? <Link href={`/business/${business.id}/team`} className="inline-flex items-center gap-2 rounded-full border border-orange-400/20 bg-orange-400/[0.07] px-4 py-2.5 text-xs font-bold text-orange-200 transition hover:bg-orange-400/10"><MdGroups size={18} /> Equipo</Link> : null}
+              <p className="mt-1 text-xs text-zinc-600">/c/{business.slug}</p>
+              {business.description ? <p className="mt-3 line-clamp-2 text-xs leading-5 text-zinc-500">{business.description}</p> : <p className="mt-3 text-xs text-zinc-700">Completa la ficha para enriquecer el escaparate.</p>}
+
+              <div className="mt-6 grid grid-cols-2 gap-2">
+                <Link href={`/business/${business.id}/counter`} className="inline-flex items-center justify-center gap-2 rounded-full px-4 py-2.5 text-xs font-black text-white" style={{ background: accent }}><MdPointOfSale size={17} /> Mostrador</Link>
+                <Link href={`/business/${business.id}`} className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-zinc-300">Panel <MdArrowForward size={16} /></Link>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Link href={`/c/${business.slug}`} target="_blank" className="inline-flex items-center gap-1.5 rounded-full border border-white/8 px-3 py-2 text-[10px] font-bold text-zinc-500 hover:text-zinc-300"><MdOpenInNew size={14} /> Escaparate</Link>
+                {canManageTeam ? <Link href={`/business/${business.id}/team`} className="inline-flex items-center gap-1.5 rounded-full border border-white/8 px-3 py-2 text-[10px] font-bold text-zinc-500 hover:text-zinc-300"><MdGroups size={15} /> Equipo</Link> : null}
               </div>
             </article>
           );
@@ -96,7 +98,7 @@ function BusinessHomeContent() {
         <div className="mt-8 rounded-[1.6rem] border border-dashed border-white/10 p-8 text-center">
           <MdAddBusiness size={32} className="mx-auto text-zinc-600" />
           <p className="mt-3 text-sm font-bold text-white">Todavía no gestionas ningún negocio</p>
-          <p className="mt-2 text-xs leading-5 text-zinc-500">Crea el primero y podrás definir bonos, asignarlos y validar consumos desde el móvil.</p>
+          <p className="mt-2 text-xs leading-5 text-zinc-500">Crea el primero y Bonoa te guiará para configurar su catálogo y empezar a emitir bonos.</p>
         </div>
       ) : null}
 
@@ -104,24 +106,13 @@ function BusinessHomeContent() {
         <div className="max-w-xl">
           <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-orange-300">Nuevo espacio</p>
           <h2 className="mt-2 text-2xl font-black tracking-tight text-white">Crear negocio</h2>
-          <p className="mt-2 text-sm leading-6 text-zinc-500">Al crearlo quedas registrado automáticamente como owner.</p>
+          <p className="mt-2 text-sm leading-6 text-zinc-500">Solo necesitas nombre e identificador. Después podrás completar branding, catálogo y equipo desde el panel.</p>
         </div>
 
         <form onSubmit={onCreate} className="mt-6 grid gap-4 md:grid-cols-2">
-          <label className="text-xs font-bold text-zinc-400">
-            Nombre
-            <input value={name} onChange={(event) => setName(event.target.value)} placeholder="StarGarage" required minLength={2} className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-700 focus:border-orange-400/40" />
-          </label>
-          <label className="text-xs font-bold text-zinc-400">
-            Identificador
-            <input value={currentSlug} onChange={(event) => { setSlugTouched(true); setSlug(event.target.value.toLowerCase()); }} placeholder="stargarage" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-700 focus:border-orange-400/40" />
-          </label>
-          <div className="md:col-span-2 flex flex-wrap items-center gap-3">
-            <button disabled={creating || !name.trim() || !currentSlug} className="brand-gradient inline-flex items-center gap-2 rounded-full px-5 py-3 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-40">
-              <MdAddBusiness size={19} /> {creating ? "Creando…" : "Crear negocio"}
-            </button>
-            {error ? <p className="text-xs text-red-300">{error}</p> : null}
-          </div>
+          <label className="text-xs font-bold text-zinc-400">Nombre<input value={name} onChange={(event) => setName(event.target.value)} placeholder="StarGarage" required minLength={2} className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-700 focus:border-orange-400/40" /></label>
+          <label className="text-xs font-bold text-zinc-400">Identificador<input value={currentSlug} onChange={(event) => { setSlugTouched(true); setSlug(event.target.value.toLowerCase()); }} placeholder="stargarage" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-700 focus:border-orange-400/40" /></label>
+          <div className="md:col-span-2 flex flex-wrap items-center gap-3"><button disabled={creating || !name.trim() || !currentSlug} className="brand-gradient inline-flex items-center gap-2 rounded-full px-5 py-3 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-40"><MdAddBusiness size={19} /> {creating ? "Creando…" : "Crear negocio"}</button>{error ? <p className="text-xs text-red-300">{error}</p> : null}</div>
         </form>
       </section>
     </main>
