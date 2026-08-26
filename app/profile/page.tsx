@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MdArrowBack, MdBadge, MdEdit, MdEmail, MdLockReset, MdLogout, MdSave, MdSecurity, MdStorefront } from "react-icons/md";
+import { MdArrowBack, MdBadge, MdEdit, MdEmail, MdLockReset, MdLogout, MdOpenInNew, MdSave, MdSecurity, MdStorefront } from "react-icons/md";
 import AuthGuard from "@/components/auth/AuthGuard";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { friendlyError } from "@/lib/errors";
@@ -93,6 +93,7 @@ function ProfileContent() {
 
         <div className="mt-7 flex flex-wrap gap-3">
           <Link href="/business" className="inline-flex items-center gap-2 rounded-full border border-orange-400/20 bg-orange-400/10 px-4 py-2.5 text-xs font-bold text-orange-200 transition hover:bg-orange-400/15"><MdStorefront size={18} /> Bonoa Business</Link>
+          <Link href="/tramassso" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-zinc-300 transition hover:bg-white/10"><MdOpenInNew size={17} /> Volver a Tramassso</Link>
           <Link href="/reset-password" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-zinc-300 transition hover:bg-white/10"><MdLockReset size={18} /> Cambiar contraseña</Link>
           <button type="button" onClick={logout} className="inline-flex items-center gap-2 rounded-full border border-red-400/15 bg-red-400/5 px-4 py-2.5 text-xs font-bold text-red-200 transition hover:bg-red-400/10"><MdLogout size={17} /> Cerrar sesión</button>
         </div>
