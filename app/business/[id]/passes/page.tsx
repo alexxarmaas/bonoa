@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { MdArrowBack, MdFilterList, MdQrCodeScanner, MdSearch, MdStyle } from "react-icons/md";
@@ -14,6 +14,8 @@ import type { Database } from "@/lib/supabase/database.types";
 type PassStatus = Database["public"]["Enums"]["pass_status"];
 type Product = Database["public"]["Tables"]["loyalty_products"]["Row"];
 
+type PassFilters = { query: string; status: "" | PassStatus; productId: string };
+
 const statuses: Array<{ value: "" | PassStatus; label: string }> = [
   { value: "", label: "Todos" },
   { value: "active", label: "Activos" },
@@ -21,6 +23,13 @@ const statuses: Array<{ value: "" | PassStatus; label: string }> = [
   { value: "expired", label: "Caducados" },
   { value: "cancelled", label: "Cancelados" },
 ];
+
+const statusLabel: Record<PassStatus, string> = {
+  active: "Activo",
+  exhausted: "Agotado",
+  expired: "Caducado",
+  cancelled: "Cancelado",
+};
 
 const statusClass: Record<PassStatus, string> = {
   active: "border-emerald-400/15 bg-emerald-400/5 text-emerald-300",
@@ -42,23 +51,23 @@ function PassesContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (filters?: { query?: string; status?: "" | PassStatus; productId?: string }) => {
+  const loadFilters = async (filters: PassFilters) => {
     if (!user) return;
     setLoading(true);
     setError(null);
     try {
-      const access = await getBusinessAccess(businessId, user.id);
-      if (!access) throw new Error("No tienes acceso a este negocio.");
-      const [currentProducts, currentPasses] = await Promise.all([
+      const [access, currentProducts] = await Promise.all([
+        getBusinessAccess(businessId, user.id),
         getBusinessProducts(businessId),
-        getBusinessManagedPasses({
-          businessId,
-          query: filters?.query ?? query,
-          status: (filters?.status ?? status) || null,
-          productId: (filters?.productId ?? productId) || null,
-          limit: 100,
-        }),
       ]);
+      if (!access) throw new Error("No tienes acceso a este negocio.");
+      const currentPasses = await getBusinessManagedPasses({
+        businessId,
+        query: filters.query,
+        status: filters.status || null,
+        productId: filters.productId || null,
+        limit: 100,
+      });
       setBusinessName(access.business.name);
       setProducts(currentProducts);
       setPasses(currentPasses);
@@ -67,22 +76,43 @@ function PassesContent() {
     } finally {
       setLoading(false);
     }
-  }, [businessId, productId, query, status, user]);
+  };
 
   useEffect(() => {
-    void load({ query: "", status: "", productId: "" });
-  }, [load]);
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const [access, currentProducts] = await Promise.all([
+          getBusinessAccess(businessId, user.id),
+          getBusinessProducts(businessId),
+        ]);
+        if (!access) throw new Error("No tienes acceso a este negocio.");
+        const currentPasses = await getBusinessManagedPasses({ businessId, limit: 100 });
+        if (cancelled) return;
+        setBusinessName(access.business.name);
+        setProducts(currentProducts);
+        setPasses(currentPasses);
+      } catch (cause) {
+        if (!cancelled) setError(friendlyError(cause, "No hemos podido cargar los bonos."));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [businessId, user]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    void load();
+    void loadFilters({ query, status, productId });
   };
 
   const reset = () => {
     setQuery("");
     setStatus("");
     setProductId("");
-    void load({ query: "", status: "", productId: "" });
+    void loadFilters({ query: "", status: "", productId: "" });
   };
 
   return (
@@ -111,7 +141,7 @@ function PassesContent() {
           return (
             <article key={pass.pass_id} className="bonoa-card rounded-[1.5rem] p-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="flex min-w-0 items-start gap-4"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-orange-400/15 bg-orange-400/[0.07] text-orange-300"><MdStyle size={21} /></div><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-bold text-white">{pass.product_name}</p><span className={`rounded-full border px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.12em] ${statusClass[pass.pass_status]}`}>{pass.pass_status}</span></div><p className="mt-1 break-all text-[10px] text-zinc-600">{pass.pass_id}</p></div></div>
+                <div className="flex min-w-0 items-start gap-4"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-orange-400/15 bg-orange-400/[0.07] text-orange-300"><MdStyle size={21} /></div><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-bold text-white">{pass.product_name}</p><span className={`rounded-full border px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.12em] ${statusClass[pass.pass_status]}`}>{statusLabel[pass.pass_status]}</span></div><p className="mt-1 break-all text-[10px] text-zinc-600">{pass.pass_id}</p></div></div>
                 <div className="text-right"><p className="text-xl font-black text-white">{pass.remaining_units}<span className="ml-1 text-xs text-zinc-600">/ {pass.initial_units}{pass.product_type === "balance" ? " €" : ""}</span></p><p className="mt-1 text-[10px] text-zinc-600">Emitido {new Date(pass.purchased_at).toLocaleDateString("es-ES")}</p></div>
               </div>
               <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/5"><div className="h-full rounded-full bg-gradient-to-r from-red-500 to-orange-400" style={{ width: `${pct}%` }} /></div>
