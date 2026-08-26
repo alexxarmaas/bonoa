@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MdArrowBack, MdBadge, MdEmail, MdLogout, MdSecurity } from "react-icons/md";
+import { MdArrowBack, MdBadge, MdEmail, MdLogout, MdSecurity, MdStorefront } from "react-icons/md";
 import AuthGuard from "@/components/auth/AuthGuard";
 import { useAuth } from "@/components/auth/AuthProvider";
 
@@ -40,7 +40,10 @@ function ProfileContent() {
           <div className="flex items-center gap-3 py-4 text-sm text-zinc-300"><MdSecurity className="text-orange-300" size={20} /> Sesión protegida por Supabase Auth</div>
         </div>
 
-        <button type="button" onClick={logout} className="mt-7 inline-flex items-center gap-2 rounded-full border border-red-400/15 bg-red-400/5 px-4 py-2.5 text-xs font-bold text-red-200 transition hover:bg-red-400/10"><MdLogout size={17} /> Cerrar sesión</button>
+        <div className="mt-7 flex flex-wrap gap-3">
+          <Link href="/business" className="inline-flex items-center gap-2 rounded-full border border-orange-400/20 bg-orange-400/10 px-4 py-2.5 text-xs font-bold text-orange-200 transition hover:bg-orange-400/15"><MdStorefront size={18} /> Bonoa Business</Link>
+          <button type="button" onClick={logout} className="inline-flex items-center gap-2 rounded-full border border-red-400/15 bg-red-400/5 px-4 py-2.5 text-xs font-bold text-red-200 transition hover:bg-red-400/10"><MdLogout size={17} /> Cerrar sesión</button>
+        </div>
       </section>
     </main>
   );
