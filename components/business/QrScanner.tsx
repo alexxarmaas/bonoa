@@ -2,16 +2,30 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BrowserQRCodeReader, type IScannerControls } from "@zxing/browser";
-import { MdCameraswitch, MdQrCodeScanner } from "react-icons/md";
+import { MdCameraswitch, MdPauseCircleOutline, MdQrCodeScanner } from "react-icons/md";
 
-export default function QrScanner({ onResult }: { onResult: (value: string) => void }) {
+type QrScannerProps = {
+  onResult: (value: string) => void;
+  active?: boolean;
+  restartToken?: number;
+};
+
+export default function QrScanner({ onResult, active = true, restartToken = 0 }: QrScannerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [enabled, setEnabled] = useState(true);
+  const [enabled, setEnabled] = useState(active);
 
   useEffect(() => {
-    if (!enabled || !videoRef.current) return;
+    controlsRef.current?.stop();
+    controlsRef.current = null;
+    setCameraError(null);
+    setEnabled(active);
+  }, [active, restartToken]);
+
+  useEffect(() => {
+    if (!active || !enabled || !videoRef.current) return;
+
     let cancelled = false;
     const reader = new BrowserQRCodeReader(undefined, { delayBetweenScanAttempts: 180 });
 
@@ -19,18 +33,25 @@ export default function QrScanner({ onResult }: { onResult: (value: string) => v
       .decodeFromVideoDevice(undefined, videoRef.current, (result) => {
         if (!result || cancelled) return;
         controlsRef.current?.stop();
+        controlsRef.current = null;
         setEnabled(false);
+        if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+          navigator.vibrate(35);
+        }
         onResult(result.getText());
       })
       .then((controls) => {
-        if (cancelled) {
+        if (cancelled || !active) {
           controls.stop();
           return;
         }
         controlsRef.current = controls;
       })
       .catch(() => {
-        if (!cancelled) setCameraError("No pudimos abrir la cámara. Puedes pegar el código manualmente.");
+        if (!cancelled) {
+          setEnabled(false);
+          setCameraError("No pudimos abrir la cámara. Revisa el permiso o pega el código manualmente.");
+        }
       });
 
     return () => {
@@ -38,9 +59,12 @@ export default function QrScanner({ onResult }: { onResult: (value: string) => v
       controlsRef.current?.stop();
       controlsRef.current = null;
     };
-  }, [enabled, onResult]);
+  }, [active, enabled, onResult]);
 
   const restart = () => {
+    if (!active) return;
+    controlsRef.current?.stop();
+    controlsRef.current = null;
     setCameraError(null);
     setEnabled(false);
     window.setTimeout(() => setEnabled(true), 0);
@@ -53,11 +77,32 @@ export default function QrScanner({ onResult }: { onResult: (value: string) => v
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
           <div className="h-[58%] w-[58%] rounded-[1.5rem] border-2 border-orange-400/70 shadow-[0_0_0_999px_rgba(0,0,0,.36)]" />
         </div>
-        {!enabled ? <div className="absolute inset-0 grid place-items-center bg-black/75"><MdQrCodeScanner size={42} className="text-orange-300" /></div> : null}
+        {!active ? (
+          <div className="absolute inset-0 grid place-items-center bg-black/85 p-6 text-center">
+            <div>
+              <MdPauseCircleOutline size={42} className="mx-auto text-emerald-300/70" />
+              <p className="mt-3 text-xs font-black text-white">Cliente activo</p>
+              <p className="mt-1 text-[10px] leading-5 text-zinc-500">La cámara se reactivará al terminar con este cliente.</p>
+            </div>
+          </div>
+        ) : !enabled ? (
+          <div className="absolute inset-0 grid place-items-center bg-black/75"><MdQrCodeScanner size={42} className="text-orange-300" /></div>
+        ) : null}
       </div>
       <div className="flex items-center justify-between gap-3 p-4">
-        <div><p className="text-xs font-bold text-white">Escáner Bonoa</p><p className="mt-1 text-[10px] text-zinc-600">Apunta al QR de la wallet del cliente.</p></div>
-        <button type="button" onClick={restart} className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/5 text-zinc-300" aria-label="Reiniciar cámara"><MdCameraswitch size={20} /></button>
+        <div>
+          <p className="text-xs font-bold text-white">Escáner Bonoa</p>
+          <p className="mt-1 text-[10px] text-zinc-600">{active ? "Apunta al QR de la wallet del cliente." : "En pausa para evitar cambiar de cliente por accidente."}</p>
+        </div>
+        <button
+          type="button"
+          onClick={restart}
+          disabled={!active}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/5 text-zinc-300 disabled:cursor-not-allowed disabled:opacity-30"
+          aria-label="Reiniciar cámara"
+        >
+          <MdCameraswitch size={20} />
+        </button>
       </div>
       {cameraError ? <p className="border-t border-white/8 px-4 py-3 text-xs text-amber-200/80">{cameraError}</p> : null}
     </div>
