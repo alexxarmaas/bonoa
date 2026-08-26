@@ -50,7 +50,8 @@ function ActivityContent() {
 
   const load = useCallback(async (append = false) => {
     if (!user) return;
-    append ? setLoadingMore(true) : setLoading(true);
+    if (append) setLoadingMore(true);
+    else setLoading(true);
     setError(null);
     try {
       const access = await getBusinessAccess(businessId, user.id);
