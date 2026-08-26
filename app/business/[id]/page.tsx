@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { MdAdd, MdArrowBack, MdHistory, MdQrCodeScanner, MdStorefront, MdStyle } from "react-icons/md";
+import { MdAdd, MdArrowBack, MdHistory, MdQrCodeScanner, MdStorefront, MdStyle, MdToggleOff, MdToggleOn } from "react-icons/md";
 import AuthGuard from "@/components/auth/AuthGuard";
 import { useAuth } from "@/components/auth/AuthProvider";
 import {
@@ -12,7 +12,9 @@ import {
   getBusinessMetrics,
   getBusinessProducts,
   getBusinessRecentRedemptions,
+  setBusinessProductActive,
 } from "@/lib/business-data";
+import { friendlyError } from "@/lib/errors";
 import type { Database } from "@/lib/supabase/database.types";
 
 type Product = Database["public"]["Tables"]["loyalty_products"]["Row"];
@@ -30,6 +32,7 @@ function BusinessDashboardContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [productName, setProductName] = useState("");
   const [description, setDescription] = useState("");
   const [type, setType] = useState<"uses" | "balance">("uses");
@@ -78,8 +81,8 @@ function BusinessDashboardContent() {
         setMetrics(currentMetrics);
         setRecent(currentRecent);
       })
-      .catch(() => {
-        if (active) setError("No hemos podido cargar este negocio.");
+      .catch((cause) => {
+        if (active) setError(friendlyError(cause, "No hemos podido cargar este negocio."));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -90,12 +93,20 @@ function BusinessDashboardContent() {
   }, [businessId, user]);
 
   const canManage = access?.role === "owner" || access?.role === "manager";
+  const activeProducts = products.filter((product) => product.active).length;
 
   const onCreateProduct = async (event: FormEvent) => {
     event.preventDefault();
     const parsedUnits = Number(units);
     const parsedDays = validityDays.trim() ? Number(validityDays) : null;
-    if (!productName.trim() || !Number.isFinite(parsedUnits) || parsedUnits <= 0) return;
+    if (!productName.trim() || !Number.isFinite(parsedUnits) || parsedUnits <= 0) {
+      setError("Revisa el nombre y el saldo/usos iniciales del bono.");
+      return;
+    }
+    if (type === "uses" && !Number.isInteger(parsedUnits)) {
+      setError("Los bonos por usos necesitan un número entero de usos.");
+      return;
+    }
 
     setCreating(true);
     setError(null);
@@ -112,9 +123,22 @@ function BusinessDashboardContent() {
       setDescription("");
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "No se pudo crear el bono.");
+      setError(friendlyError(cause, "No se pudo crear el bono."));
     } finally {
       setCreating(false);
+    }
+  };
+
+  const toggleProduct = async (product: Product) => {
+    setTogglingId(product.id);
+    setError(null);
+    try {
+      const updated = await setBusinessProductActive(product.id, !product.active);
+      setProducts((current) => current.map((item) => item.id === updated.id ? updated : item));
+    } catch (cause) {
+      setError(friendlyError(cause, "No se pudo cambiar el estado del bono."));
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -144,10 +168,12 @@ function BusinessDashboardContent() {
         </Link>
       </header>
 
+      {error ? <div className="mt-5 rounded-2xl border border-red-400/15 bg-red-400/5 p-4 text-xs text-red-200">{error}</div> : null}
+
       <section className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="bonoa-card rounded-[1.5rem] p-5"><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Bonos emitidos</p><p className="mt-3 text-3xl font-black text-white">{metrics.passes}</p></div>
         <div className="bonoa-card rounded-[1.5rem] p-5"><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Consumos</p><p className="mt-3 text-3xl font-black text-white">{metrics.redemptions}</p></div>
-        <div className="bonoa-card rounded-[1.5rem] p-5"><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Productos</p><p className="mt-3 text-3xl font-black text-white">{products.length}</p></div>
+        <div className="bonoa-card rounded-[1.5rem] p-5"><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Productos activos</p><p className="mt-3 text-3xl font-black text-white">{activeProducts}<span className="ml-1 text-sm text-zinc-600">/{products.length}</span></p></div>
         <div className="bonoa-card rounded-[1.5rem] p-5"><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500">Estado</p><p className="mt-3 text-sm font-black uppercase tracking-[0.16em] text-emerald-300">{access.business.status}</p></div>
       </section>
 
@@ -158,15 +184,17 @@ function BusinessDashboardContent() {
           </div>
           <div className="space-y-3">
             {products.map((product) => (
-              <article key={product.id} className="bonoa-card flex items-center gap-4 rounded-[1.4rem] p-4 sm:p-5">
+              <article key={product.id} className={`bonoa-card flex items-center gap-4 rounded-[1.4rem] p-4 sm:p-5 ${product.active ? "" : "opacity-60"}`}>
                 <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-orange-400/15 bg-orange-400/[0.07] text-orange-300"><MdStyle size={21} /></div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <p className="font-bold text-white">{product.name}</p>
+                    <span className={`rounded-full border px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.14em] ${product.active ? "border-emerald-400/15 bg-emerald-400/5 text-emerald-300" : "border-white/10 text-zinc-500"}`}>{product.active ? "activo" : "inactivo"}</span>
                     <span className="rounded-full border border-white/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-zinc-400">{product.type === "uses" ? "usos" : "saldo"}</span>
                   </div>
                   <p className="mt-1 text-xs text-zinc-500">{product.initial_units} {product.type === "uses" ? "usos" : "€"} · {product.validity_days ? `${product.validity_days} días` : "sin caducidad"}</p>
                 </div>
+                {canManage ? <button type="button" disabled={togglingId !== null} onClick={() => void toggleProduct(product)} className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-[10px] font-bold ${product.active ? "border-white/10 text-zinc-400" : "border-emerald-400/20 bg-emerald-400/5 text-emerald-300"} disabled:opacity-40`}>{product.active ? <MdToggleOn size={19} /> : <MdToggleOff size={19} />}{togglingId === product.id ? "Guardando…" : product.active ? "Desactivar" : "Activar"}</button> : null}
               </article>
             ))}
             {!products.length ? <div className="rounded-[1.4rem] border border-dashed border-white/10 p-8 text-center text-sm text-zinc-600">Crea tu primer tipo de bono.</div> : null}
@@ -192,12 +220,11 @@ function BusinessDashboardContent() {
           <form onSubmit={onCreateProduct} className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <label className="text-xs font-bold text-zinc-400">Nombre<input value={productName} onChange={(event) => setProductName(event.target.value)} required placeholder="Lavado x10" className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-orange-400/40" /></label>
             <label className="text-xs font-bold text-zinc-400">Tipo<select value={type} onChange={(event) => setType(event.target.value as "uses" | "balance")} className="mt-2 w-full rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm text-white outline-none focus:border-orange-400/40"><option value="uses">Usos</option><option value="balance">Saldo</option></select></label>
-            <label className="text-xs font-bold text-zinc-400">{type === "uses" ? "Número de usos" : "Saldo inicial (€)"}<input type="number" min="0.01" step={type === "uses" ? "1" : "0.01"} value={units} onChange={(event) => setUnits(event.target.value)} required className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-orange-400/40" /></label>
+            <label className="text-xs font-bold text-zinc-400">{type === "uses" ? "Número de usos" : "Saldo inicial (€)"}<input type="number" min={type === "uses" ? "1" : "0.01"} step={type === "uses" ? "1" : "0.01"} value={units} onChange={(event) => setUnits(event.target.value)} required className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-orange-400/40" /></label>
             <label className="text-xs font-bold text-zinc-400">Validez (días)<input type="number" min="1" value={validityDays} onChange={(event) => setValidityDays(event.target.value)} placeholder="Vacío = sin caducidad" className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-orange-400/40" /></label>
             <label className="text-xs font-bold text-zinc-400 md:col-span-2 xl:col-span-3">Descripción<input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Qué incluye este bono" className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none focus:border-orange-400/40" /></label>
             <div className="flex items-end"><button disabled={creating} className="brand-gradient w-full rounded-full px-5 py-3 text-xs font-black text-white disabled:opacity-40">{creating ? "Creando…" : "Crear bono"}</button></div>
           </form>
-          {error ? <p className="mt-4 text-xs text-red-300">{error}</p> : null}
         </section>
       ) : null}
 
