@@ -9,7 +9,6 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import QrScanner from "@/components/business/QrScanner";
 import {
   getBusinessAccess,
-  getBusinessProducts,
   issuePass,
   lookupWalletPasses,
   parseBonoaQr,
@@ -19,9 +18,8 @@ import {
 } from "@/lib/business-data";
 import { friendlyError } from "@/lib/errors";
 import { cancelPass } from "@/lib/pass-ops";
-import type { Database } from "@/lib/supabase/database.types";
+import { formatMoney, getPilotProducts, type PilotProduct } from "@/lib/pilot-data";
 
-type Product = Database["public"]["Tables"]["loyalty_products"]["Row"];
 type Access = Awaited<ReturnType<typeof getBusinessAccess>>;
 
 const statusLabel: Record<ScannedWalletPass["pass_status"], string> = {
@@ -36,7 +34,7 @@ function ScanContent() {
   const params = useParams<{ id: string }>();
   const businessId = params.id;
   const [access, setAccess] = useState<Access>(null);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<PilotProduct[]>([]);
   const [qr, setQr] = useState<BonoaQrIdentity | null>(null);
   const [rawCode, setRawCode] = useState("");
   const [passes, setPasses] = useState<ScannedWalletPass[]>([]);
@@ -51,7 +49,7 @@ function ScanContent() {
   useEffect(() => {
     if (!user) return;
     let active = true;
-    Promise.all([getBusinessAccess(businessId, user.id), getBusinessProducts(businessId)])
+    Promise.all([getBusinessAccess(businessId, user.id), getPilotProducts(businessId)])
       .then(([currentAccess, currentProducts]) => {
         if (!active) return;
         const availableProducts = currentProducts.filter((product) => product.active);
@@ -105,12 +103,18 @@ function ScanContent() {
 
   const onIssue = async () => {
     if (!qr || !selectedProduct) return;
+    const product = products.find((item) => item.id === selectedProduct);
+    if (!product) return;
+    const priceLabel = formatMoney(product.sale_price_cents, product.currency);
+    const confirmed = window.confirm(`¿Asignar “${product.name}” a esta wallet?\n\n${product.initial_units} ${product.type === "uses" ? "usos" : "€ de saldo"}\n${priceLabel}\n${product.validity_days ? `Validez: ${product.validity_days} días` : "Sin caducidad"}`);
+    if (!confirmed) return;
+
     setBusyId("issue");
     setError(null);
     setSuccess(null);
     try {
       await issuePass(selectedProduct, qr);
-      setSuccess("Bono asignado correctamente a la wallet.");
+      setSuccess(`“${product.name}” asignado correctamente. El cliente ya puede verlo en su wallet.`);
       setPasses(await lookupWalletPasses(businessId, qr));
     } catch (cause) {
       setError(friendlyError(cause, "No se pudo emitir el bono."));
@@ -182,10 +186,12 @@ function ScanContent() {
     <main className="bonoa-shell min-h-screen">
       <header className="flex items-center gap-4">
         <Link href={`/business/${businessId}`} className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:text-white" aria-label="Volver"><MdArrowBack size={20} /></Link>
-        <div><p className="text-[10px] font-bold uppercase tracking-[0.24em] text-orange-300">{access.business.name}</p><h1 className="mt-1 text-2xl font-black tracking-tight text-white">Escanear cliente</h1></div>
+        <div><p className="text-[10px] font-bold uppercase tracking-[0.24em] text-orange-300">{access.business.name}</p><h1 className="mt-1 text-2xl font-black tracking-tight text-white">Asignar / consumir</h1></div>
       </header>
 
-      <section className="mt-8 grid gap-6 xl:grid-cols-[.85fr_1.15fr]">
+      <div className="mt-5 rounded-2xl border border-white/8 bg-white/[0.025] p-4 text-xs leading-5 text-zinc-500">1. Escanea la wallet del cliente. 2. Asigna un bono nuevo o selecciona uno existente. 3. Confirma cada operación antes de aplicarla.</div>
+
+      <section className="mt-6 grid gap-6 xl:grid-cols-[.85fr_1.15fr]">
         <div className="space-y-4">
           <QrScanner onResult={acceptCode} />
           <form onSubmit={submitManual} className="bonoa-card rounded-[1.5rem] p-4">
@@ -207,8 +213,13 @@ function ScanContent() {
                 <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-orange-300">Wallet detectada</p><p className="mt-2 text-lg font-black text-white">{shortWallet}</p></div><span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-300"><MdCheckCircle size={14} /> válida</span></div>
               </div>
 
+              <section className="bonoa-card rounded-[1.6rem] p-5">
+                <div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-2xl border border-orange-400/15 bg-orange-400/[0.07] text-orange-300"><MdAddCard size={20} /></div><div><p className="text-sm font-black text-white">Asignar un bono nuevo</p><p className="mt-1 text-[10px] text-zinc-600">Te pediremos confirmación antes de emitirlo.</p></div></div>
+                {products.length ? <div className="mt-4 flex flex-col gap-3 sm:flex-row"><select value={selectedProduct} onChange={(event) => setSelectedProduct(event.target.value)} className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm text-white outline-none focus:border-orange-400/40">{products.map((product) => <option key={product.id} value={product.id}>{product.name} · {product.initial_units} {product.type === "uses" ? "usos" : "€"} · {formatMoney(product.sale_price_cents, product.currency)}</option>)}</select><button type="button" onClick={() => void onIssue()} disabled={busyId !== null || !selectedProduct} className="brand-gradient rounded-full px-5 py-3 text-xs font-black text-white disabled:opacity-40">{busyId === "issue" ? "Asignando…" : "Asignar"}</button></div> : <div className="mt-4 rounded-2xl border border-amber-400/15 bg-amber-400/5 p-4 text-xs text-amber-100">No hay bonos activos. <Link href={`/business/${businessId}/catalog`} className="font-black underline">Crear uno en Catálogo</Link>.</div>}
+              </section>
+
               <section>
-                <div className="mb-3 flex items-center justify-between gap-3"><h2 className="text-lg font-black text-white">Bonos disponibles</h2><span className="text-xs text-zinc-600">{passes.length}</span></div>
+                <div className="mb-3 flex items-center justify-between gap-3"><h2 className="text-lg font-black text-white">Bonos del cliente</h2><span className="text-xs text-zinc-600">{passes.length}</span></div>
                 <div className="space-y-3">
                   {passes.map((pass) => {
                     const usable = pass.pass_status === "active" && pass.remaining_units > 0;
@@ -221,11 +232,6 @@ function ScanContent() {
                   })}
                   {!passes.length ? <div className="rounded-[1.5rem] border border-dashed border-white/10 p-7 text-center text-xs text-zinc-600">Esta wallet todavía no tiene bonos de este negocio.</div> : null}
                 </div>
-              </section>
-
-              <section className="bonoa-card rounded-[1.6rem] p-5">
-                <div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-2xl border border-orange-400/15 bg-orange-400/[0.07] text-orange-300"><MdAddCard size={20} /></div><div><p className="text-sm font-black text-white">Asignar un bono</p><p className="mt-1 text-[10px] text-zinc-600">Se añadirá inmediatamente a la wallet.</p></div></div>
-                {products.length ? <div className="mt-4 flex flex-col gap-3 sm:flex-row"><select value={selectedProduct} onChange={(event) => setSelectedProduct(event.target.value)} className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-black px-4 py-3 text-sm text-white outline-none focus:border-orange-400/40">{products.map((product) => <option key={product.id} value={product.id}>{product.name} · {product.initial_units} {product.type === "uses" ? "usos" : "€"}</option>)}</select><button type="button" onClick={() => void onIssue()} disabled={busyId !== null || !selectedProduct} className="brand-gradient rounded-full px-5 py-3 text-xs font-black text-white disabled:opacity-40">{busyId === "issue" ? "Asignando…" : "Asignar"}</button></div> : <p className="mt-4 text-xs text-amber-200/75">No hay tipos de bono activos. Activa o crea uno desde el panel del negocio.</p>}
               </section>
             </div>
           )}
