@@ -8,8 +8,13 @@ export function GET() {
       status: "ok",
       service: "bonoa",
       commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "local",
-      integrations: {
-        tramasssoSso: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+      capabilities: {
+        loyaltyCampaigns: true,
+        automaticRewards: true,
+        customerSegments: true,
+        eventBasedLoyalty: true,
+        purchaseAndVisitTracking: true,
+        spendThresholdRewards: true,
       },
       timestamp: new Date().toISOString(),
     },

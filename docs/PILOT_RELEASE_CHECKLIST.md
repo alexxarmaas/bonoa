@@ -42,18 +42,39 @@ Usar una cuenta cliente y una cuenta del negocio distintas. No validar el piloto
 - [ ] Doble clic/reintento de emisión: no crea dos bonos para la misma operación.
 - [ ] Reintento de consumo con el mismo `request_id`: no duplica el consumo.
 
-## 3. E2E Tramassso → Bonoa
+## 3. E2E de fidelización
 
-1. Iniciar el acceso desde Tramassso con una cuenta real.
-2. Tramassso emite un ticket opaco de un solo uso.
-3. Bonoa canjea el ticket server-to-server.
-4. Se crea o recupera el enlace estable en `external_identities`.
-5. El navegador termina con una sesión Supabase normal.
-6. Refrescar Bonoa y confirmar que la sesión persiste.
-7. Reutilizar el mismo ticket y confirmar que se rechaza.
-8. Salir de Bonoa y verificar que el login independiente sigue disponible.
+### Campaña compartible
 
-Nunca copiar `SUPABASE_SERVICE_ROLE_KEY` a GitHub, al navegador, a logs o a documentación.
+1. Crear un producto promocional activo en Catálogo.
+2. En `Fidelización`, crear una campaña con límite de reclamaciones y fecha de fin.
+3. Copiar el enlace `/promo/[code]` y abrirlo en una sesión de cliente distinta.
+4. Si el cliente no tiene sesión, registrarse/iniciar sesión y confirmar que vuelve automáticamente a la campaña.
+5. Reclamar el premio y comprobar que aparece inmediatamente en la wallet con precio promocional 0 €.
+6. Abrir de nuevo el mismo enlace y reclamar otra vez: debe devolver el mismo bono, no emitir uno nuevo.
+7. Comprobar que el contador de reclamaciones solo aumenta una vez.
+8. Pausar la campaña y confirmar que una wallet nueva ya no puede reclamarla.
+9. Repetir con una campaña agotada por `max_claims` y confirmar el estado público correcto.
+
+### Recompensa automática
+
+1. Crear una regla sencilla para prueba, por ejemplo `cada 2 consumos de A → regalar B`.
+2. Consumir una vez: no debe aparecer premio.
+3. Registrar el segundo consumo: el premio B debe aparecer automáticamente en la wallet.
+4. Confirmar un único `reward_issued` en Actividad y un único grant para ese hito.
+5. Repetir/reintentar la operación de consumo: no debe duplicar ni el consumo ni el premio.
+6. Pausar la regla y verificar que deja de generar premios nuevos.
+7. Reactivarla y verificar que vuelve a funcionar.
+8. Probar recuperación: hacer temporalmente no disponible el producto-premio en un entorno controlado, alcanzar el hito, reactivarlo y confirmar que un consumo posterior recupera el hito pendiente sin duplicarlo.
+
+### Radar de clientes
+
+- [ ] `Clientes` muestra códigos pseudónimos `CL-...`, nunca email/nombre/token QR.
+- [ ] Una wallet reciente se clasifica como `Nuevo`.
+- [ ] La recurrencia actualiza el segmento y los contadores.
+- [ ] Un cliente con historial de consumo y >45 días de inactividad aparece como `En riesgo`.
+- [ ] Clientes con >=5 consumos o >=3 bonos aparecen como `Fieles`.
+- [ ] La tasa de recurrentes coincide con los datos de prueba.
 
 ## 4. Comercio listo para piloto
 
@@ -68,17 +89,30 @@ Nunca copiar `SUPABASE_SERVICE_ROLE_KEY` a GitHub, al navegador, a logs o a docu
 - [ ] Cartel QR A4 generado y legible a distancia razonable.
 - [ ] Modo mostrador probado en móvil/tablet.
 - [ ] Owner y staff/manager necesarios configurados.
+- [ ] Al menos una campaña de ejemplo preparada para la demo.
+- [ ] Si se usan premios automáticos, sus productos-regalo tienen coste/margen asumible para el comercio.
 
 ## 5. Datos y privacidad
 
-- [ ] El comercio solo consulta bonos de su propio negocio.
+- [ ] El comercio solo consulta bonos y métricas de su propio negocio.
 - [ ] El escaneo no revela PII del cliente.
-- [ ] La tabla `external_identities` continúa sin acceso directo desde `anon`/`authenticated`.
+- [ ] El radar de fidelización usa identificadores pseudónimos, no PII.
+- [ ] Campañas, claims, reglas y grants no tienen acceso directo desde `anon`/`authenticated`; pasan por RPC controladas.
+- [ ] La lectura pública de campañas expone solo ficha comercial y datos del premio.
 - [ ] Las mutaciones de wallet, passes y redemptions pasan por RPC controladas.
 - [ ] El feed de auditoría solo está disponible para owner/manager.
 - [ ] Exportaciones CSV no incluyen PII innecesaria.
 
-## 6. Release
+## 6. Tramassso
+
+Tramassso no es proveedor de identidad de Bonoa. Se utiliza únicamente como escaparate/canal de descubrimiento.
+
+- [ ] No existe botón ni flujo de “Entrar desde Tramassso”.
+- [ ] Bonoa no depende de una sesión, cookie o cuenta de Tramassso.
+- [ ] Los enlaces desde Tramassso abren páginas públicas de Bonoa o el escaparate correspondiente.
+- [ ] `NEXT_PUBLIC_TRAMASSSO_URL` se usa únicamente para navegación/retorno cuando proceda.
+
+## 7. Release
 
 Cuando todo lo anterior esté verde:
 
@@ -90,7 +124,7 @@ Cuando todo lo anterior esté verde:
 6. Crear tag de versión (`v0.1.0` para el primer piloto estable).
 7. Registrar fecha, commit y comercios incluidos en el piloto.
 
-## 7. Rollback
+## 8. Rollback
 
 Si aparece un problema grave tras desplegar:
 
