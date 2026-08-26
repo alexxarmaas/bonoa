@@ -48,7 +48,10 @@ function CustomersContent() {
     }
   };
 
-  useEffect(() => { void load(); }, [businessId, user]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [businessId, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const summary = useMemo(() => {
     const loyal = customers.filter((customer) => customer.segment === "loyal").length;
