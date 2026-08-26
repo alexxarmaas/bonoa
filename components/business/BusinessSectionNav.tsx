@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
-import { MdAssessment, MdCampaign, MdDashboard, MdGroups, MdHistory, MdPeople, MdPointOfSale, MdQrCodeScanner, MdSettings, MdStyle, MdViewList } from "react-icons/md";
+import { MdAssessment, MdCampaign, MdDashboard, MdGroups, MdHistory, MdLocalActivity, MdPeople, MdPointOfSale, MdQrCodeScanner, MdSettings, MdStyle, MdViewList } from "react-icons/md";
 
 const items = [
   { suffix: "", label: "Resumen", icon: MdDashboard },
   { suffix: "/counter", label: "Mostrador", icon: MdPointOfSale },
+  { suffix: "/engage", label: "Compras / visitas", icon: MdLocalActivity },
   { suffix: "/customers", label: "Clientes", icon: MdGroups },
   { suffix: "/growth", label: "Fidelización", icon: MdCampaign },
   { suffix: "/catalog", label: "Catálogo", icon: MdViewList },
