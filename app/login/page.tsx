@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MdArrowForward } from "react-icons/md";
+import { MdArrowForward, MdDirectionsCar } from "react-icons/md";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { friendlyError } from "@/lib/errors";
 import { supabase } from "@/lib/supabase/client";
@@ -15,9 +15,30 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const tramasssoEntry = `${process.env.NEXT_PUBLIC_TRAMASSSO_URL ?? "https://tramassso.com"}/bonoa`;
 
   useEffect(() => {
-    if (!authLoading && user) router.replace("/");
+    if (!authLoading && user) {
+      router.replace("/");
+      return;
+    }
+
+    let errorTimer: number | undefined;
+
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("sso_error") === "1") {
+        errorTimer = window.setTimeout(() => {
+          setError("El acceso desde Tramassso ha caducado o no pudo validarse. Inténtalo de nuevo; el código solo puede usarse una vez.");
+        }, 0);
+      }
+    } catch {
+      // La pantalla de acceso sigue disponible aunque no podamos leer la URL.
+    }
+
+    return () => {
+      if (errorTimer !== undefined) window.clearTimeout(errorTimer);
+    };
   }, [authLoading, user, router]);
 
   const submit = async (event: FormEvent) => {
@@ -49,7 +70,12 @@ export default function LoginPage() {
           <h1 className="mt-2 text-3xl font-black tracking-tight text-white">Entra en tu wallet</h1>
           <p className="mt-3 text-sm leading-6 text-zinc-500">Consulta tus bonos y enseña tu QR cuando quieras utilizarlos.</p>
 
-          <form onSubmit={submit} className="mt-7 space-y-4">
+          <a href={tramasssoEntry} className="mt-7 flex w-full items-center justify-center gap-2 rounded-full border border-red-400/20 bg-red-400/[0.07] px-5 py-3.5 text-xs font-black text-red-100 transition hover:bg-red-400/[0.12]">
+            <MdDirectionsCar size={18} /> Entrar desde Tramassso
+          </a>
+          <div className="my-5 flex items-center gap-3"><span className="h-px flex-1 bg-white/8" /><span className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-700">o con Bonoa</span><span className="h-px flex-1 bg-white/8" /></div>
+
+          <form onSubmit={submit} className="space-y-4">
             <label className="block">
               <span className="mb-2 block text-xs font-semibold text-zinc-400">Email</span>
               <input required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-zinc-700 focus:border-orange-500/50" placeholder="tu@email.com" />
