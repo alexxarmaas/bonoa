@@ -18,7 +18,6 @@ function WalletContent() {
     if (!user) return;
     let active = true;
 
-    setLoading(true);
     getWalletPasses(user.id)
       .then((data) => {
         if (!active) return;
