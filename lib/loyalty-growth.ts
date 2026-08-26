@@ -52,6 +52,25 @@ export type RewardRule = {
   created_at: string;
 };
 
+export type WalletRewardProgress = {
+  rule_id: string;
+  business_id: string;
+  business_name: string;
+  business_logo_url: string | null;
+  business_accent_color: string;
+  rule_name: string;
+  trigger_product_name: string;
+  reward_product_name: string;
+  every_n_redemptions: number;
+  qualifying_redemptions: number;
+  rewards_earned: number;
+  progress_in_cycle: number;
+  next_reward_in: number;
+  reward_pending: boolean;
+  completed: boolean;
+  max_rewards_per_wallet: number | null;
+};
+
 export type PublicCampaign = {
   campaign_id: string;
   campaign_name: string;
@@ -133,6 +152,12 @@ export async function getBusinessRewardRules(businessId: string): Promise<Reward
   const { data, error } = await rpc<RewardRule[]>("business_loyalty_reward_rules", {
     target_business_id: businessId,
   });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function getWalletRewardProgress(): Promise<WalletRewardProgress[]> {
+  const { data, error } = await rpc<WalletRewardProgress[]>("wallet_reward_progress");
   if (error) throw error;
   return data ?? [];
 }
