@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MdApple, MdWallet } from "react-icons/md";
+import { FaApple } from "react-icons/fa";
+import { MdWallet } from "react-icons/md";
 import { supabase } from "@/lib/supabase/client";
 
 type Capabilities = { google: boolean; apple: boolean };
@@ -77,7 +78,7 @@ export default function DigitalWalletButtons({ membershipId }: { membershipId: s
     <div className="mt-4 border-t border-white/5 pt-4">
       <p className="mb-2 text-[9px] font-black uppercase tracking-[0.15em] text-zinc-600">Llévalo en tu móvil</p>
       <div className="flex flex-wrap gap-2">
-        {capabilities.apple ? <button type="button" onClick={() => void addApple()} disabled={Boolean(loading)} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white px-3.5 py-2 text-[10px] font-black text-black disabled:opacity-50"><MdApple size={16} /> {loading === "apple" ? "Preparando…" : "Apple Wallet"}</button> : null}
+        {capabilities.apple ? <button type="button" onClick={() => void addApple()} disabled={Boolean(loading)} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white px-3.5 py-2 text-[10px] font-black text-black disabled:opacity-50"><FaApple size={16} /> {loading === "apple" ? "Preparando…" : "Apple Wallet"}</button> : null}
         {capabilities.google ? <button type="button" onClick={() => void addGoogle()} disabled={Boolean(loading)} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-2 text-[10px] font-black text-white disabled:opacity-50"><MdWallet size={16} /> {loading === "google" ? "Preparando…" : "Google Wallet"}</button> : null}
       </div>
       {message ? <p className="mt-2 text-[10px] text-red-300">{message}</p> : null}
