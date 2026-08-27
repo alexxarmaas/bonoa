@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { MdErrorOutline, MdHome, MdRefresh } from "react-icons/md";
 import BonoaLogo from "@/components/brand/BonoaLogo";
+import { reportBonoaClientError } from "@/components/ClientObservability";
 
 export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     console.error("Bonoa route error", { message: error.message, digest: error.digest });
+    reportBonoaClientError(error, error.digest);
   }, [error]);
 
   return (
