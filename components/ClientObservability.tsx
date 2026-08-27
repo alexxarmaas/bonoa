@@ -12,7 +12,7 @@ function report(message: string, name?: string | null, digest?: string | null) {
       message: message.slice(0, 500),
       name: name?.slice(0, 120) ?? null,
       digest: digest?.slice(0, 120) ?? null,
-      path: `${window.location.pathname}${window.location.search}`.slice(0, 500),
+      path: window.location.pathname.slice(0, 500),
     }),
   }).catch(() => undefined);
 }
