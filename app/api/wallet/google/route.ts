@@ -52,20 +52,17 @@ export async function POST(request: NextRequest) {
   const { data: authData, error: authError } = await supabase.auth.getUser(bearer);
   if (authError || !authData.user) return NextResponse.json({ error: "authentication_required" }, { status: 401 });
 
-  const [{ data: memberships, error: membershipError }, { data: wallet, error: walletError }] = await Promise.all([
-    supabase.rpc("wallet_memberships"),
-    supabase.from("wallets").select("public_token, qr_version").eq("user_id", authData.user.id).single(),
-  ]);
-  if (membershipError || walletError) return NextResponse.json({ error: "wallet_lookup_failed" }, { status: 500 });
+  const { data: memberships, error: membershipError } = await supabase.rpc("wallet_memberships");
+  if (membershipError) return NextResponse.json({ error: "wallet_lookup_failed" }, { status: 500 });
 
   const membership = (memberships as Membership[] | null)?.find((item) => item.membership_id === body.membershipId);
-  if (!membership || !wallet) return NextResponse.json({ error: "membership_not_found" }, { status: 404 });
+  if (!membership) return NextResponse.json({ error: "membership_not_found" }, { status: 404 });
 
   const classId = `${issuerId}.bonoa_membership`;
   const objectSuffix = `membership_${membership.membership_id.replace(/-/g, "")}`;
   const objectId = `${issuerId}.${objectSuffix}`;
   const origin = new URL(request.url).origin;
-  const qrValue = `bonoa:v${wallet.qr_version}:${wallet.public_token}`;
+  const liveQrUrl = new URL("/qr", origin).toString();
   const accent = /^#[0-9a-f]{6}$/i.test(membership.business_accent_color || "") ? membership.business_accent_color : "#ff5a1f";
 
   const genericClass = { id: classId };
@@ -77,14 +74,19 @@ export async function POST(request: NextRequest) {
     header: { defaultValue: { language: "es-ES", value: membership.business_name } },
     subheader: { defaultValue: { language: "es-ES", value: "Carnet de fidelización" } },
     hexBackgroundColor: accent,
-    barcode: { type: "QR_CODE", value: qrValue, alternateText: "Mi QR Bonōa" },
     textModulesData: [
       { id: "member_since", header: "SOCIO DESDE", body: new Date(membership.joined_at).toLocaleDateString("es-ES", { month: "long", year: "numeric" }) },
       { id: "purchases", header: "COMPRAS", body: String(membership.purchases) },
       { id: "visits", header: "VISITAS", body: String(membership.visits) },
       { id: "rewards", header: "PREMIOS", body: String(membership.rewards_earned) },
+      { id: "qr_security", header: "QR SEGURO", body: "Abre Bonoa para mostrar tu QR vigente. Así un QR antiguo nunca queda válido en tu carnet." },
     ],
-    linksModuleData: { uris: [{ uri: origin, description: "Abrir mi wallet Bonōa", id: "bonoa-wallet" }] },
+    linksModuleData: {
+      uris: [
+        { uri: liveQrUrl, description: "Abrir mi QR Bonōa", id: "bonoa-live-qr" },
+        { uri: origin, description: "Abrir mi wallet Bonōa", id: "bonoa-wallet" },
+      ],
+    },
   } as Record<string, unknown>;
 
   if (membership.business_logo_url?.startsWith("https://")) {
