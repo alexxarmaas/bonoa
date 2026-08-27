@@ -12,9 +12,21 @@ const checks = [
     status: 200,
     json: (value) => value?.status === "ok"
       && value?.service === "bonoa"
+      && value?.capabilities?.permanentMemberships === true
+      && value?.capabilities?.qualifiedPurchaseGoals === true
+      && value?.capabilities?.visualLoyaltyProgress === true
+      && value?.capabilities?.transactionReceipts === true
+      && value?.capabilities?.notificationCenter === true
+      && value?.capabilities?.segmentedCampaigns === true
+      && value?.capabilities?.actionableBusinessDashboard === true
       && value?.capabilities?.loyaltyCampaigns === true
       && value?.capabilities?.automaticRewards === true
       && value?.capabilities?.customerSegments === true,
+  },
+  {
+    path: "/api/wallet/capabilities",
+    status: 200,
+    json: (value) => typeof value?.google === "boolean" && typeof value?.apple === "boolean",
   },
   { path: "/__bonoa_missing_route__", status: 404 },
 ];
