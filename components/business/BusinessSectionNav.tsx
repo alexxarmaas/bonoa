@@ -2,20 +2,22 @@
 
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
-import { MdAssessment, MdCampaign, MdDashboard, MdGroups, MdHistory, MdLocalActivity, MdPeople, MdPointOfSale, MdQrCodeScanner, MdSettings, MdStyle, MdViewList } from "react-icons/md";
+import { MdAssessment, MdCampaign, MdDashboard, MdGroups, MdHistory, MdPeople, MdPointOfSale, MdRocketLaunch, MdSecurity, MdSettings, MdStyle, MdViewList, MdWorkspacePremium, MdPersonAddAlt1 } from "react-icons/md";
 
 const items = [
   { suffix: "", label: "Resumen", icon: MdDashboard },
-  { suffix: "/counter", label: "Mostrador", icon: MdPointOfSale },
-  { suffix: "/engage", label: "Compras / visitas", icon: MdLocalActivity },
+  { suffix: "/onboarding", label: "Puesta en marcha", icon: MdRocketLaunch },
+  { suffix: "/terminal", label: "Mostrador", icon: MdPointOfSale },
   { suffix: "/customers", label: "Clientes", icon: MdGroups },
-  { suffix: "/growth", label: "Fidelización", icon: MdCampaign },
+  { suffix: "/club", label: "Carnet", icon: MdWorkspacePremium },
+  { suffix: "/campaigns", label: "Campañas", icon: MdCampaign },
+  { suffix: "/referrals", label: "Referidos", icon: MdPersonAddAlt1 },
+  { suffix: "/security", label: "Seguridad", icon: MdSecurity },
   { suffix: "/catalog", label: "Catálogo", icon: MdViewList },
   { suffix: "/insights", label: "Métricas", icon: MdAssessment },
   { suffix: "/passes", label: "Bonos", icon: MdStyle },
   { suffix: "/activity", label: "Actividad", icon: MdHistory },
   { suffix: "/team", label: "Equipo", icon: MdPeople },
-  { suffix: "/scan", label: "Asignar / consumir", icon: MdQrCodeScanner },
   { suffix: "/settings", label: "Configuración", icon: MdSettings },
 ];
 
@@ -31,11 +33,7 @@ export default function BusinessSectionNav() {
           const href = `${base}${suffix}`;
           const active = suffix === "" ? pathname === base : pathname.startsWith(href);
           return (
-            <Link
-              key={suffix || "root"}
-              href={href}
-              className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-[11px] font-bold transition ${active ? "bg-white/10 text-white" : "text-zinc-500 hover:bg-white/5 hover:text-zinc-300"}`}
-            >
+            <Link key={suffix || "root"} href={href} className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-[11px] font-bold transition ${active ? "bg-white/10 text-white" : "text-zinc-500 hover:bg-white/5 hover:text-zinc-300"}`}>
               <Icon size={17} /> {label}
             </Link>
           );

@@ -13,6 +13,9 @@ export type WalletMembership = {
   business_name: string;
   business_logo_url: string | null;
   business_accent_color: string;
+  club_name: string | null;
+  club_message: string | null;
+  membership_badge_label: string;
   joined_at: string;
   last_activity_at: string;
   purchases: number;
@@ -45,7 +48,7 @@ export type WalletNotification = {
   notification_id: string;
   business_id: string | null;
   business_name: string | null;
-  notification_type: "purchase" | "visit" | "redemption" | "reward" | "campaign" | "system";
+  notification_type: "purchase" | "visit" | "redemption" | "reward" | "campaign" | "system" | "progress" | "expiry" | "referral";
   title: string;
   body: string;
   metadata: Record<string, unknown>;
@@ -81,7 +84,7 @@ export type BusinessLoyaltyOpportunities = {
 };
 
 export async function getWalletMemberships(): Promise<WalletMembership[]> {
-  const { data, error } = await rpc<WalletMembership[]>("wallet_memberships");
+  const { data, error } = await rpc<WalletMembership[]>("wallet_memberships_v2");
   if (error) throw error;
   return data ?? [];
 }
@@ -93,6 +96,9 @@ export async function getMembershipRuleProgress(): Promise<MembershipRuleProgres
 }
 
 export async function getWalletNotifications(limit = 50): Promise<WalletNotification[]> {
+  // Refresh idempotent system alerts first (expiry / near reward). A refresh failure
+  // must never hide the existing notification feed.
+  await rpc<number>("refresh_wallet_system_notifications").then(() => undefined, () => undefined);
   const { data, error } = await rpc<WalletNotification[]>("wallet_notifications_feed", { target_limit: limit });
   if (error) throw error;
   return data ?? [];
