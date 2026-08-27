@@ -34,9 +34,11 @@ export default function PwaInstallCard() {
     const dismissedUntil = Number(window.localStorage.getItem(DISMISS_KEY) || 0);
     if (dismissedUntil > Date.now()) return;
 
-    const iosDevice = isIosDevice();
-    setIos(iosDevice);
-    if (iosDevice) setVisible(true);
+    const frame = window.requestAnimationFrame(() => {
+      const iosDevice = isIosDevice();
+      setIos(iosDevice);
+      if (iosDevice) setVisible(true);
+    });
 
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
@@ -54,6 +56,7 @@ export default function PwaInstallCard() {
     window.addEventListener("appinstalled", handleInstalled);
 
     return () => {
+      window.cancelAnimationFrame(frame);
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
       window.removeEventListener("appinstalled", handleInstalled);
     };
