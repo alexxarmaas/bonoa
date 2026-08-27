@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
+import ClientObservability from "@/components/ClientObservability";
 import PwaRegistration from "@/components/PwaRegistration";
 import ThemeShell from "@/components/ThemeShell";
 import { AuthProvider } from "@/components/auth/AuthProvider";
@@ -54,6 +55,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="es">
       <body className="antialiased">
         <AuthProvider>
+          <ClientObservability />
           <PwaRegistration />
           <ThemeShell>
             {children}
