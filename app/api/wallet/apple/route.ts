@@ -36,16 +36,13 @@ export async function POST(request: NextRequest) {
   const { data: authData, error: authError } = await supabase.auth.getUser(bearer);
   if (authError || !authData.user) return NextResponse.json({ error: "authentication_required" }, { status: 401 });
 
-  const [{ data: memberships, error: membershipError }, { data: wallet, error: walletError }] = await Promise.all([
-    supabase.rpc("wallet_memberships"),
-    supabase.from("wallets").select("public_token, qr_version").eq("user_id", authData.user.id).single(),
-  ]);
-  if (membershipError || walletError) return NextResponse.json({ error: "wallet_lookup_failed" }, { status: 500 });
+  const { data: memberships, error: membershipError } = await supabase.rpc("wallet_memberships");
+  if (membershipError) return NextResponse.json({ error: "wallet_lookup_failed" }, { status: 500 });
 
   const membership = (memberships as Membership[] | null)?.find((item) => item.membership_id === body.membershipId);
-  if (!membership || !wallet) return NextResponse.json({ error: "membership_not_found" }, { status: 404 });
+  if (!membership) return NextResponse.json({ error: "membership_not_found" }, { status: 404 });
 
-  const qrValue = `bonoa:v${wallet.qr_version}:${wallet.public_token}`;
+  const liveQrUrl = new URL("/qr", request.url).toString();
   const response = await fetch(signerUrl, {
     method: "POST",
     headers: {
@@ -63,8 +60,9 @@ export async function POST(request: NextRequest) {
       purchases: membership.purchases,
       visits: membership.visits,
       rewardsEarned: membership.rewards_earned,
-      barcode: qrValue,
+      liveQrUrl,
       walletUrl: new URL("/", request.url).toString(),
+      securityNote: "El carnet no incrusta una copia del QR. El enlace abre siempre el QR vigente de Bonoa.",
     }),
     cache: "no-store",
   });
