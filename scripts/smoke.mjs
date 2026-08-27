@@ -81,6 +81,34 @@ for (const check of checks) {
 }
 
 try {
+  const response = await fetch(`${baseUrl}/`);
+  const expectedHeaders = {
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+    "referrer-policy": "strict-origin-when-cross-origin",
+  };
+
+  for (const [name, expected] of Object.entries(expectedHeaders)) {
+    const actual = response.headers.get(name);
+    if (actual !== expected) {
+      console.error(`FAIL security header ${name}: expected ${expected}, got ${actual}`);
+      failed = true;
+    }
+  }
+
+  const permissions = response.headers.get("permissions-policy") ?? "";
+  if (!permissions.includes("camera=(self)") || !permissions.includes("microphone=()")) {
+    console.error(`FAIL permissions-policy: got ${permissions}`);
+    failed = true;
+  } else {
+    console.log("PASS baseline security headers");
+  }
+} catch (error) {
+  console.error("FAIL security headers:", error);
+  failed = true;
+}
+
+try {
   const response = await fetch(`${baseUrl}/api/client-error`, {
     method: "POST",
     headers: { "content-type": "application/json", "sec-fetch-site": "same-origin" },
@@ -95,6 +123,23 @@ try {
   }
 } catch (error) {
   console.error("FAIL client error reporting:", error);
+  failed = true;
+}
+
+try {
+  const response = await fetch(`${baseUrl}/api/client-error`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "sec-fetch-site": "cross-site" },
+    body: JSON.stringify({ message: "blocked-cross-site-smoke" }),
+  });
+  if (response.status !== 403) {
+    console.error(`FAIL client error cross-site guard: expected 403, got ${response.status}`);
+    failed = true;
+  } else {
+    console.log("PASS client error cross-site guard (403)");
+  }
+} catch (error) {
+  console.error("FAIL client error cross-site guard:", error);
   failed = true;
 }
 
