@@ -1,4 +1,5 @@
 import { MdCardMembership, MdEmojiEvents, MdShoppingBag, MdWorkspacePremium } from "react-icons/md";
+import DigitalWalletButtons from "@/components/DigitalWalletButtons";
 import {
   membershipSegmentLabel,
   qualifiedPurchaseLabel,
@@ -41,10 +42,7 @@ function RuleProgress({ rule }: { rule: MembershipRuleProgress }) {
           {Array.from({ length: threshold }).map((_, index) => {
             const filled = index < progress;
             return (
-              <div
-                key={index}
-                className={`grid aspect-square min-h-8 place-items-center rounded-xl border text-[10px] font-black ${filled ? "border-orange-400/30 bg-orange-400/15 text-orange-200" : "border-white/8 bg-white/[0.025] text-zinc-700"}`}
-              >
+              <div key={index} className={`grid aspect-square min-h-8 place-items-center rounded-xl border text-[10px] font-black ${filled ? "border-orange-400/30 bg-orange-400/15 text-orange-200" : "border-white/8 bg-white/[0.025] text-zinc-700"}`}>
                 {filled ? "✓" : index + 1}
               </div>
             );
@@ -60,11 +58,7 @@ function RuleProgress({ rule }: { rule: MembershipRuleProgress }) {
         <div>
           <p className="text-lg font-black text-white">{metricLabel(rule, progress)} <span className="text-zinc-600">/ {metricLabel(rule, threshold)}</span></p>
           <p className="mt-1 text-[10px] text-zinc-600">
-            {rule.completed
-              ? "Objetivo completado"
-              : rule.remaining_value <= 0
-                ? "Premio desbloqueado"
-                : `Te faltan ${metricLabel(rule, rule.remaining_value)}`}
+            {rule.completed ? "Objetivo completado" : rule.remaining_value <= 0 ? "Premio desbloqueado" : `Te faltan ${metricLabel(rule, rule.remaining_value)}`}
           </p>
         </div>
         {rule.rewards_earned > 0 ? <span className="shrink-0 rounded-full border border-amber-300/15 bg-amber-300/[0.06] px-3 py-1.5 text-[10px] font-black text-amber-200">{rule.rewards_earned} premio{rule.rewards_earned === 1 ? "" : "s"}</span> : null}
@@ -88,9 +82,7 @@ export default function MembershipCard({ membership, rules }: { membership: Wall
               <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-zinc-600">Carnet de fidelización · socio desde {new Date(membership.joined_at).toLocaleDateString("es-ES", { month: "short", year: "numeric" })}</p>
             </div>
           </div>
-          <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-black text-zinc-300">
-            <MdWorkspacePremium className="mr-1 inline" size={13} /> {membershipSegmentLabel(membership.segment)}
-          </span>
+          <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-black text-zinc-300"><MdWorkspacePremium className="mr-1 inline" size={13} /> {membershipSegmentLabel(membership.segment)}</span>
         </div>
 
         <div className="mt-5 grid grid-cols-3 gap-2">
@@ -102,6 +94,8 @@ export default function MembershipCard({ membership, rules }: { membership: Wall
         <div className="mt-4 space-y-3">
           {rules.length ? rules.map((rule) => <RuleProgress key={rule.rule_id} rule={rule} />) : <div className="rounded-2xl border border-dashed border-white/10 p-4 text-xs leading-5 text-zinc-600">Tu carnet está activo. Cuando este comercio añada un objetivo de fidelización, el progreso aparecerá aquí sin que tengas que hacer nada.</div>}
         </div>
+
+        <DigitalWalletButtons membershipId={membership.membership_id} />
       </div>
     </article>
   );
