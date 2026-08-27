@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MdArrowBack, MdBadge, MdEdit, MdEmail, MdLockReset, MdLogout, MdOpenInNew, MdSave, MdSecurity, MdStorefront } from "react-icons/md";
+import AccountPrivacyPanel from "@/components/AccountPrivacyPanel";
 import AuthGuard from "@/components/auth/AuthGuard";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { friendlyError } from "@/lib/errors";
@@ -59,7 +60,7 @@ function ProfileContent() {
   };
 
   return (
-    <main className="bonoa-shell">
+    <main className="bonoa-shell pb-24">
       <header className="flex items-center gap-4">
         <Link href="/wallet" className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:text-white" aria-label="Volver a la wallet"><MdArrowBack size={20} /></Link>
         <div><p className="text-[10px] font-bold uppercase tracking-[0.24em] text-orange-300">Cuenta</p><h1 className="mt-1 text-2xl font-black tracking-tight text-white">Perfil</h1></div>
@@ -98,6 +99,8 @@ function ProfileContent() {
           <button type="button" onClick={logout} className="inline-flex items-center gap-2 rounded-full border border-red-400/15 bg-red-400/5 px-4 py-2.5 text-xs font-bold text-red-200 transition hover:bg-red-400/10"><MdLogout size={17} /> Cerrar sesión</button>
         </div>
       </section>
+
+      <AccountPrivacyPanel />
     </main>
   );
 }
