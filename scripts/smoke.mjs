@@ -1,12 +1,13 @@
 const baseUrl = (process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:3000").replace(/\/$/, "");
 
 const checks = [
+  { path: "/", status: 200 },
   { path: "/login", status: 200 },
   { path: "/register", status: 200 },
   { path: "/forgot-password", status: 200 },
   { path: "/reset-password", status: 200 },
   { path: "/promo/smoke-test-code", status: 200 },
-  { path: "/manifest.webmanifest", status: 200, json: (value) => value?.name === "Bonoa" && value?.display === "standalone" },
+  { path: "/manifest.webmanifest", status: 200, json: (value) => value?.name === "Bonoa" && value?.display === "standalone" && value?.start_url === "/wallet" },
   {
     path: "/api/health",
     status: 200,
