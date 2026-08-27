@@ -4,8 +4,8 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Bonoa",
     short_name: "Bonoa",
-    description: "Todos tus bonos, beneficios y fidelizaciones. Un solo QR.",
-    start_url: "/",
+    description: "Carnets, bonos, recompensas y fidelización. Un solo QR.",
+    start_url: "/wallet",
     display: "standalone",
     background_color: "#060606",
     theme_color: "#060606",
