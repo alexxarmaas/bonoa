@@ -105,9 +105,7 @@ button, input, textarea, select { font: inherit; }
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }
 
-/* Compatibility layer for the pre-brand-system product UI. It keeps the
-   operational screens readable while they progressively move to semantic
-   brand components instead of legacy dark Tailwind utilities. */
+/* Compatibility layer for the pre-brand-system product UI. */
 .bonoa-product-theme .text-white { color: #0f172a !important; }
 .bonoa-product-theme .text-zinc-200,
 .bonoa-product-theme .text-zinc-300 { color: #334155 !important; }
@@ -117,19 +115,31 @@ button, input, textarea, select { font: inherit; }
 .bonoa-product-theme .text-zinc-700 { color: #cbd5e1 !important; }
 .bonoa-product-theme [class*="text-orange-"] { color: #2563eb !important; }
 .bonoa-product-theme [class*="text-amber-"] { color: #0891b2 !important; }
+.bonoa-product-theme [class*="text-sky-"] { color: #0284c7 !important; }
+.bonoa-product-theme [class*="text-cyan-"] { color: #0891b2 !important; }
+.bonoa-product-theme [class*="text-emerald-"] { color: #047857 !important; }
+.bonoa-product-theme [class*="text-red-"] { color: #b91c1c !important; }
 .bonoa-product-theme [class*="border-white/"] { border-color: #dbe7f5 !important; }
 .bonoa-product-theme [class*="border-orange-"] { border-color: rgba(37, 99, 235, .2) !important; }
 .bonoa-product-theme [class*="border-amber-"] { border-color: rgba(6, 182, 212, .22) !important; }
-.bonoa-product-theme [class*="bg-black/"] { background-color: rgba(255, 255, 255, .72) !important; }
+.bonoa-product-theme [class*="border-sky-"] { border-color: rgba(14, 165, 233, .18) !important; }
+.bonoa-product-theme [class*="border-cyan-"] { border-color: rgba(6, 182, 212, .2) !important; }
+.bonoa-product-theme [class*="border-zinc-"] { border-color: #dbe7f5 !important; }
+.bonoa-product-theme [class*="bg-black/"] { background-color: rgba(255, 255, 255, .78) !important; }
 .bonoa-product-theme [class*="bg-white/"] { background-color: rgba(37, 99, 235, .045) !important; }
 .bonoa-product-theme [class*="bg-orange-"] { background-color: rgba(37, 99, 235, .08) !important; }
 .bonoa-product-theme [class*="bg-amber-"] { background-color: rgba(6, 182, 212, .08) !important; }
+.bonoa-product-theme [class*="bg-sky-"] { background-color: rgba(14, 165, 233, .065) !important; }
+.bonoa-product-theme [class*="bg-cyan-"] { background-color: rgba(6, 182, 212, .07) !important; }
+.bonoa-product-theme [class*="bg-zinc-9"],
+.bonoa-product-theme [class*="bg-zinc-8"],
+.bonoa-product-theme [class*="bg-[#0"] { background: #ffffff !important; }
 .bonoa-product-theme [class*="divide-white/"] > :not(:last-child) { border-color: #e2e8f0 !important; }
 .bonoa-product-theme [class*="placeholder:text-zinc-"]::placeholder { color: #94a3b8 !important; }
 .bonoa-product-theme [class*="hover:bg-white/"]:hover { background-color: rgba(37, 99, 235, .08) !important; }
 .bonoa-product-theme [class*="hover:text-white"]:hover { color: #0f172a !important; }
-.bonoa-product-theme [class*="focus:border-orange"]:focus { border-color: rgba(37, 99, 235, .55) !important; }
-.bonoa-product-theme [class*="bg-[#090909]"] { background: #ffffff !important; }
+.bonoa-product-theme [class*="focus:border-orange"]:focus,
+.bonoa-product-theme [class*="border-t-orange-"] { border-color: rgba(37, 99, 235, .55) !important; }
 
 /* Preserve white copy when an element is intentionally filled with a brand/status color. */
 .bonoa-product-theme .brand-gradient,
