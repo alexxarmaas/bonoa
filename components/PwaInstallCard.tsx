@@ -81,7 +81,7 @@ export default function PwaInstallCard() {
   if (!visible) return null;
 
   return (
-    <section className="relative mt-6 overflow-hidden rounded-[1.8rem] border border-[#bfdbfe] bg-gradient-to-br from-white via-[#f4f8ff] to-[#ecfeff] p-5 shadow-[0_18px_50px_rgba(37,99,235,.09)] sm:p-6">
+    <section className="fixed bottom-24 left-4 right-4 z-40 overflow-hidden rounded-[1.8rem] border border-[#bfdbfe] bg-gradient-to-br from-white via-[#f4f8ff] to-[#ecfeff] p-5 shadow-[0_24px_70px_rgba(15,23,42,.18)] sm:bottom-6 sm:left-auto sm:right-6 sm:w-[28rem] sm:p-6">
       <div className="pointer-events-none absolute -right-10 -top-12 h-36 w-36 rounded-full bg-[#2563eb]/10 blur-3xl" />
       <button type="button" onClick={dismiss} className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full text-[#94a3b8] transition hover:bg-white hover:text-[#334155]" aria-label="Ocultar instalación">
         <MdClose size={18} />
@@ -94,7 +94,7 @@ export default function PwaInstallCard() {
         <div className="min-w-0">
           <p className="text-[10px] font-black uppercase tracking-[.2em] text-[#2563eb]">Bonoa en tu móvil</p>
           <h2 className="mt-1 text-lg font-black tracking-tight text-[#0f172a]">Abre tu wallet como una app.</h2>
-          <p className="mt-2 max-w-2xl text-xs leading-5 text-[#64748b]">Accede a tu QR, carnets y premios desde la pantalla de inicio, sin buscar Bonoa en el navegador cada vez.</p>
+          <p className="mt-2 text-xs leading-5 text-[#64748b]">Tu QR, carnets y premios desde la pantalla de inicio, sin buscar Bonoa en el navegador.</p>
         </div>
       </div>
 
