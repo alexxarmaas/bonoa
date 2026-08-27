@@ -92,7 +92,8 @@ export default function PublicBusinessCatalogPage() {
     if (!user || loading || autoJoinAttempted.current || typeof window === "undefined") return;
     if (new URLSearchParams(window.location.search).get("join") !== "1") return;
     autoJoinAttempted.current = true;
-    void join();
+    const timer = window.setTimeout(() => { void join(); }, 0);
+    return () => window.clearTimeout(timer);
   }, [join, loading, user]);
 
   const share = async () => {
