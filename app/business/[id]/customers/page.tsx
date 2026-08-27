@@ -51,8 +51,6 @@ function CustomersContent() {
     return () => window.clearTimeout(timer);
   }, [businessId, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { setFilter(initialFilter); }, [initialFilter]);
-
   const summary = useMemo(() => {
     const loyal = customers.filter((customer) => customer.segment === "loyal").length;
     const atRisk = customers.filter((customer) => customer.segment === "at_risk").length;
