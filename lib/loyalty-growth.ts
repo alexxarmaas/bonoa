@@ -8,6 +8,7 @@ type RpcClient = <T>(fn: string, args?: Record<string, unknown>) => RpcResult<T>
 const rpc = supabase.rpc as unknown as RpcClient;
 
 export type CustomerSegment = "new" | "active" | "loyal" | "at_risk";
+export type CampaignSegment = "all" | CustomerSegment;
 export type LoyaltyEventType = "purchase" | "visit";
 export type AutomationTrigger = "purchase_count" | "visit_count" | "spend_total" | "product_redemption_count";
 
@@ -35,6 +36,7 @@ export type LoyaltyCampaign = {
   share_code: string;
   product_id: string;
   product_name: string;
+  target_segment: CampaignSegment;
   starts_at: string;
   ends_at: string | null;
   max_claims: number | null;
@@ -49,6 +51,7 @@ export type AutomationRule = {
   rule_name: string;
   trigger_type: AutomationTrigger;
   threshold_value: number;
+  minimum_purchase_cents: number;
   trigger_product_id: string | null;
   trigger_product_name: string | null;
   reward_product_id: string;
@@ -137,13 +140,22 @@ export async function getBusinessCustomers(businessId: string): Promise<Business
 }
 
 export async function getBusinessCampaigns(businessId: string): Promise<LoyaltyCampaign[]> {
-  const { data, error } = await rpc<LoyaltyCampaign[]>("business_loyalty_campaigns", { target_business_id: businessId });
+  const { data, error } = await rpc<LoyaltyCampaign[]>("business_loyalty_campaigns_v2", { target_business_id: businessId });
   if (error) throw error;
   return data ?? [];
 }
 
-export async function createCampaign(input: { businessId: string; productId: string; name: string; message?: string; startsAt?: string | null; endsAt?: string | null; maxClaims?: number | null }) {
-  const { data, error } = await rpc<Record<string, unknown>>("create_loyalty_campaign", {
+export async function createCampaign(input: {
+  businessId: string;
+  productId: string;
+  name: string;
+  message?: string;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  maxClaims?: number | null;
+  targetSegment?: CampaignSegment;
+}) {
+  const { data, error } = await rpc<Record<string, unknown>>("create_loyalty_campaign_v2", {
     target_business_id: input.businessId,
     target_product_id: input.productId,
     campaign_name: input.name.trim(),
@@ -151,6 +163,7 @@ export async function createCampaign(input: { businessId: string; productId: str
     campaign_starts_at: input.startsAt || new Date().toISOString(),
     campaign_ends_at: input.endsAt || null,
     campaign_max_claims: input.maxClaims ?? null,
+    campaign_target_segment: input.targetSegment ?? "all",
   });
   return assertData(data, error, "No se pudo crear la campaña.");
 }
@@ -161,7 +174,7 @@ export async function setCampaignActive(campaignId: string, active: boolean) {
 }
 
 export async function getBusinessAutomationRules(businessId: string): Promise<AutomationRule[]> {
-  const { data, error } = await rpc<AutomationRule[]>("business_loyalty_automation_rules", { target_business_id: businessId });
+  const { data, error } = await rpc<AutomationRule[]>("business_loyalty_automation_rules_v2", { target_business_id: businessId });
   if (error) throw error;
   return data ?? [];
 }
@@ -187,9 +200,22 @@ export async function registerLoyaltyEvent(input: { businessId: string; qr: Bono
   return event;
 }
 
-export async function createAutomationRule(input: { businessId: string; name: string; triggerType: AutomationTrigger; thresholdValue: number; triggerProductId?: string | null; rewardProductId: string; repeatable?: boolean; maxRewards?: number | null }) {
+export async function createAutomationRule(input: {
+  businessId: string;
+  name: string;
+  triggerType: AutomationTrigger;
+  thresholdValue: number;
+  minimumPurchaseAmount?: number;
+  triggerProductId?: string | null;
+  rewardProductId: string;
+  repeatable?: boolean;
+  maxRewards?: number | null;
+}) {
   const threshold = input.triggerType === "spend_total" ? Math.round(input.thresholdValue * 100) : Math.round(input.thresholdValue);
-  const { data, error } = await rpc<Record<string, unknown>>("create_loyalty_automation_rule", {
+  const minimumPurchaseCents = ["purchase_count", "spend_total"].includes(input.triggerType)
+    ? Math.max(0, Math.round((input.minimumPurchaseAmount ?? 0) * 100))
+    : 0;
+  const { data, error } = await rpc<Record<string, unknown>>("create_loyalty_automation_rule_v2", {
     target_business_id: input.businessId,
     rule_name: input.name.trim(),
     rule_trigger_type: input.triggerType,
@@ -198,6 +224,7 @@ export async function createAutomationRule(input: { businessId: string; name: st
     target_reward_product_id: input.rewardProductId,
     rule_repeatable: input.repeatable ?? true,
     reward_limit: input.maxRewards ?? null,
+    rule_minimum_purchase_cents: minimumPurchaseCents,
   });
   return assertData(data, error, "No se pudo crear la automatización.");
 }
@@ -236,9 +263,19 @@ export function segmentLabel(segment: CustomerSegment) {
   return { new: "Nuevo", active: "Activo", loyal: "Fiel", at_risk: "En riesgo" }[segment];
 }
 
-export function automationTriggerLabel(trigger: AutomationTrigger, thresholdValue: number, productName?: string | null) {
-  if (trigger === "purchase_count") return `Cada ${thresholdValue} compra${thresholdValue === 1 ? "" : "s"}`;
+export function campaignSegmentLabel(segment: CampaignSegment) {
+  return { all: "Todos", new: "Nuevos", active: "Activos", loyal: "Fieles", at_risk: "En riesgo" }[segment];
+}
+
+export function automationTriggerLabel(trigger: AutomationTrigger, thresholdValue: number, productName?: string | null, minimumPurchaseCents = 0) {
+  if (trigger === "purchase_count") {
+    const base = `Cada ${thresholdValue} compra${thresholdValue === 1 ? "" : "s"}`;
+    return minimumPurchaseCents > 0 ? `${base} de al menos ${(minimumPurchaseCents / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" })}` : base;
+  }
   if (trigger === "visit_count") return `Cada ${thresholdValue} visita${thresholdValue === 1 ? "" : "s"}`;
-  if (trigger === "spend_total") return `Cada ${(thresholdValue / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" })} gastados`;
+  if (trigger === "spend_total") {
+    const base = `Cada ${(thresholdValue / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" })} gastados`;
+    return minimumPurchaseCents > 0 ? `${base} en compras de al menos ${(minimumPurchaseCents / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" })}` : base;
+  }
   return `Cada ${thresholdValue} consumo${thresholdValue === 1 ? "" : "s"} de ${productName || "un producto"}`;
 }

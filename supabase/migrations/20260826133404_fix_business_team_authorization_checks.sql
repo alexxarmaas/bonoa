@@ -1,0 +1,5 @@
+-- Historical migration marker.
+-- The authorization correction applied remotely at this version was already
+-- consolidated into the canonical 20260826133338_business_team_management.sql
+-- before that SQL was committed to the repository.
+-- No additional statement is required for clean rebuilds.
