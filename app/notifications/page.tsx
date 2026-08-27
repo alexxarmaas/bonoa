@@ -37,7 +37,11 @@ function NotificationsContent() {
     }
   };
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const unread = useMemo(() => items.filter((item) => !item.read_at).length, [items]);
 
   const readOne = async (item: WalletNotification) => {
