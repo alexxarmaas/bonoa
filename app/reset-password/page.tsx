@@ -7,6 +7,8 @@ import { MdLockReset } from "react-icons/md";
 import { friendlyError } from "@/lib/errors";
 import { supabase } from "@/lib/supabase/client";
 
+const MIN_PASSWORD_LENGTH = 8;
+
 export default function ResetPasswordPage() {
   const router = useRouter();
   const [password, setPassword] = useState("");
@@ -34,8 +36,8 @@ export default function ResetPasswordPage() {
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
-    if (password.length < 6) {
-      setError("La contraseña debe tener al menos 6 caracteres.");
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setError(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`);
       return;
     }
     if (password !== confirmPassword) {
@@ -51,7 +53,7 @@ export default function ResetPasswordPage() {
       return;
     }
     setSuccess(true);
-    window.setTimeout(() => router.replace("/"), 900);
+    window.setTimeout(() => router.replace("/wallet"), 900);
   };
 
   return (
@@ -71,8 +73,8 @@ export default function ResetPasswordPage() {
             <div className="mt-7 rounded-[1.5rem] border border-emerald-400/15 bg-emerald-400/5 p-5 text-sm font-bold text-emerald-200">Contraseña actualizada. Entrando en tu wallet…</div>
           ) : (
             <form onSubmit={submit} className="mt-7 space-y-4">
-              <label className="block"><span className="mb-2 block text-xs font-semibold text-zinc-400">Nueva contraseña</span><input required minLength={6} type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-sm text-white outline-none focus:border-orange-500/50" placeholder="Mínimo 6 caracteres" /></label>
-              <label className="block"><span className="mb-2 block text-xs font-semibold text-zinc-400">Repetir contraseña</span><input required minLength={6} type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-sm text-white outline-none focus:border-orange-500/50" placeholder="Repite la contraseña" /></label>
+              <label className="block"><span className="mb-2 block text-xs font-semibold text-zinc-400">Nueva contraseña</span><input required minLength={MIN_PASSWORD_LENGTH} type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-sm text-white outline-none focus:border-orange-500/50" placeholder={`Mínimo ${MIN_PASSWORD_LENGTH} caracteres`} /></label>
+              <label className="block"><span className="mb-2 block text-xs font-semibold text-zinc-400">Repetir contraseña</span><input required minLength={MIN_PASSWORD_LENGTH} type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className="w-full rounded-2xl border border-white/10 bg-black/40 px-4 py-3.5 text-sm text-white outline-none focus:border-orange-500/50" placeholder="Repite la contraseña" /></label>
               {error ? <p className="rounded-2xl border border-red-400/15 bg-red-400/5 px-4 py-3 text-xs leading-5 text-red-200">{error}</p> : null}
               <button disabled={loading} className="brand-gradient w-full rounded-full px-5 py-3.5 text-xs font-black text-white disabled:opacity-60">{loading ? "Guardando…" : "Guardar contraseña"}</button>
             </form>

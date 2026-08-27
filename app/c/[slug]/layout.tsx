@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 
+const canonicalOrigin = "https://bonoa.tramassso.com";
+
 function publicSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -18,40 +20,54 @@ function publicSupabase() {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
+  const url = `${canonicalOrigin}/c/${slug}`;
   const client = publicSupabase();
-  if (!client) return { title: "Escaparate · Bonoa" };
+  const fallbackDescription = "Únete a este negocio en Bonoa y lleva tu carnet, progreso y recompensas siempre contigo.";
+
+  if (!client) {
+    return {
+      title: "Club digital",
+      description: fallbackDescription,
+      alternates: { canonical: url },
+    };
+  }
 
   const { data: business } = await client
     .from("businesses")
-    .select("name, description, logo_url")
+    .select("name, description")
     .eq("slug", slug)
     .eq("status", "active")
     .maybeSingle();
 
   if (!business) {
     return {
-      title: "Escaparate no disponible · Bonoa",
+      title: "Escaparate no disponible",
+      description: fallbackDescription,
+      alternates: { canonical: url },
       robots: { index: false, follow: false },
     };
   }
 
-  const title = `${business.name} · Bonos en Bonoa`;
-  const description = business.description?.trim() || `Consulta los bonos y ventajas disponibles de ${business.name} en Bonoa.`;
+  const title = `${business.name} en Bonoa`;
+  const description = business.description?.trim() || `Únete al club de ${business.name} en Bonoa y lleva tu progreso, bonos y recompensas en una sola wallet.`;
 
   return {
     title,
     description,
+    alternates: { canonical: url },
     openGraph: {
       title,
       description,
       type: "website",
-      images: business.logo_url ? [{ url: business.logo_url, alt: `Logo de ${business.name}` }] : undefined,
+      siteName: "Bonoa",
+      url,
+      images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: `${business.name} en Bonoa` }],
     },
     twitter: {
-      card: business.logo_url ? "summary_large_image" : "summary",
+      card: "summary_large_image",
       title,
       description,
-      images: business.logo_url ? [business.logo_url] : undefined,
+      images: ["/opengraph-image"],
     },
   };
 }

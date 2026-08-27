@@ -154,6 +154,13 @@ Estas pruebas solo aplican cuando existan credenciales reales de emisor; la ause
 - [ ] El feed de auditoría solo está disponible para owner/manager.
 - [ ] Exportaciones CSV no incluyen PII innecesaria.
 - [ ] Endpoints de Wallet digital verifican la sesión y que el carnet pertenece al usuario autenticado antes de emitir.
+- [ ] Registro exige aceptación de Condiciones de uso e información de privacidad y guarda versión/fecha de aceptación.
+- [ ] Comunicaciones comerciales y novedades están desactivadas por defecto y son revocables desde Perfil.
+- [ ] El usuario puede exportar sus principales datos en JSON desde Perfil.
+- [ ] El usuario puede registrar y cancelar una solicitud de eliminación.
+- [ ] Se ha probado con rollback que eliminar una cuenta con bonos ya consumidos elimina wallet/passes sin bloquearse y conserva los canjes históricos desvinculados.
+- [ ] `docs/pilot-privacy-operations.md` está revisado antes de procesar una eliminación real.
+- [ ] Una cuenta que sea el único owner de un negocio no se elimina hasta transferir el ownership o resolver el cierre del negocio.
 
 ## 6. Tramassso
 

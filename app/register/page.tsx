@@ -9,6 +9,9 @@ import BonoaLogo from "@/components/brand/BonoaLogo";
 import { friendlyError } from "@/lib/errors";
 import { supabase } from "@/lib/supabase/client";
 
+const LEGAL_VERSION = "2026-08-27";
+const MIN_PASSWORD_LENGTH = 8;
+
 function safeNextPath() {
   if (typeof window === "undefined") return "/wallet";
   const value = new URLSearchParams(window.location.search).get("next");
@@ -21,6 +24,7 @@ export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [acceptedLegal, setAcceptedLegal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -39,16 +43,31 @@ export default function RegisterPage() {
       setError("El nombre debe tener al menos 2 caracteres.");
       return;
     }
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setError(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`);
+      return;
+    }
+    if (!acceptedLegal) {
+      setError("Necesitas aceptar las condiciones de uso y la información de privacidad para crear la cuenta.");
+      return;
+    }
 
     setLoading(true);
     const next = safeNextPath();
     const loginDestination = next === "/wallet" ? "/login?confirmed=1" : `/login?confirmed=1&next=${encodeURIComponent(next)}`;
     const emailRedirectTo = `${window.location.origin}${loginDestination}`;
+    const acceptedAt = new Date().toISOString();
     const { data, error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
       options: {
-        data: { display_name: displayName },
+        data: {
+          display_name: displayName,
+          legal_terms_version: LEGAL_VERSION,
+          legal_terms_accepted_at: acceptedAt,
+          privacy_notice_version: LEGAL_VERSION,
+          privacy_notice_acknowledged_at: acceptedAt,
+        },
         emailRedirectTo,
       },
     });
@@ -97,13 +116,18 @@ export default function RegisterPage() {
             </label>
             <label className="block">
               <span className="mb-2 block text-xs font-semibold text-[#475569]">Contraseña</span>
-              <input required minLength={6} type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded-2xl border border-[#dbe7f5] bg-white px-4 py-3.5 text-sm text-[#0f172a] outline-none transition placeholder:text-[#94a3b8] focus:border-[#2563eb] focus:ring-4 focus:ring-[#2563eb]/10" placeholder="Mínimo 6 caracteres" />
+              <input required minLength={MIN_PASSWORD_LENGTH} type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded-2xl border border-[#dbe7f5] bg-white px-4 py-3.5 text-sm text-[#0f172a] outline-none transition placeholder:text-[#94a3b8] focus:border-[#2563eb] focus:ring-4 focus:ring-[#2563eb]/10" placeholder={`Mínimo ${MIN_PASSWORD_LENGTH} caracteres`} />
+            </label>
+
+            <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[#dbe7f5] bg-[#f8fbff] p-4">
+              <input required type="checkbox" checked={acceptedLegal} onChange={(event) => setAcceptedLegal(event.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#2563eb]" />
+              <span className="text-[11px] leading-5 text-[#64748b]">He leído y acepto las <Link href="/terminos" target="_blank" className="font-black text-[#2563eb]">Condiciones de uso</Link> y confirmo haber leído la <Link href="/privacidad" target="_blank" className="font-black text-[#2563eb]">información de privacidad</Link>.</span>
             </label>
 
             {error ? <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs leading-5 text-red-700">{error}</p> : null}
             {notice ? <p className="flex gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs leading-5 text-emerald-700"><MdCheckCircle className="mt-0.5 shrink-0" size={16} />{notice}</p> : null}
 
-            <button disabled={loading || Boolean(notice)} className="brand-gradient flex w-full items-center justify-center gap-2 rounded-full px-5 py-3.5 text-xs font-black text-white shadow-[0_14px_34px_rgba(37,99,235,.2)] disabled:opacity-60">
+            <button disabled={loading || Boolean(notice) || !acceptedLegal} className="brand-gradient flex w-full items-center justify-center gap-2 rounded-full px-5 py-3.5 text-xs font-black text-white shadow-[0_14px_34px_rgba(37,99,235,.2)] disabled:opacity-60">
               {loading ? "Creando…" : <>Crear cuenta <MdArrowForward size={17} /></>}
             </button>
           </form>
