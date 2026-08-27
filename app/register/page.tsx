@@ -8,6 +8,12 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { friendlyError } from "@/lib/errors";
 import { supabase } from "@/lib/supabase/client";
 
+function safeNextPath() {
+  if (typeof window === "undefined") return "/";
+  const value = new URLSearchParams(window.location.search).get("next");
+  return value && value.startsWith("/") && !value.startsWith("//") ? value : "/";
+}
+
 export default function RegisterPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
@@ -19,7 +25,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && user) router.replace("/");
+    if (!authLoading && user) router.replace(safeNextPath());
   }, [authLoading, user, router]);
 
   const submit = async (event: FormEvent) => {
@@ -34,7 +40,9 @@ export default function RegisterPage() {
     }
 
     setLoading(true);
-    const emailRedirectTo = `${window.location.origin}/login?confirmed=1`;
+    const next = safeNextPath();
+    const loginDestination = next === "/" ? "/login?confirmed=1" : `/login?confirmed=1&next=${encodeURIComponent(next)}`;
+    const emailRedirectTo = `${window.location.origin}${loginDestination}`;
     const { data, error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
       password,
@@ -52,11 +60,16 @@ export default function RegisterPage() {
     }
 
     if (data.session) {
-      router.replace("/");
+      router.replace(next);
       return;
     }
 
-    setNotice("Cuenta creada. Revisa tu correo para confirmar el acceso y después inicia sesión.");
+    setNotice("Cuenta creada. Revisa tu correo para confirmar el acceso; al volver continuarás donde estabas.");
+  };
+
+  const goToLogin = () => {
+    const next = safeNextPath();
+    router.push(next === "/" ? "/login" : `/login?next=${encodeURIComponent(next)}`);
   };
 
   return (
@@ -94,7 +107,7 @@ export default function RegisterPage() {
             </button>
           </form>
 
-          <p className="mt-6 text-center text-xs text-zinc-500">¿Ya tienes cuenta? <Link href="/login" className="font-bold text-orange-300 hover:text-orange-200">Iniciar sesión</Link></p>
+          <p className="mt-6 text-center text-xs text-zinc-500">¿Ya tienes cuenta? <button type="button" onClick={goToLogin} className="font-bold text-orange-300 hover:text-orange-200">Iniciar sesión</button></p>
         </div>
       </section>
     </main>
