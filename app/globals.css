@@ -1,15 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  --background: #060606;
-  --surface: #0d0d0f;
-  --surface-strong: #141416;
-  --foreground: #f7f7f8;
-  --muted: #9b9ba3;
-  --line: rgba(255, 255, 255, 0.10);
-  --brand-red: #ff2b1f;
-  --brand-orange: #ff6a00;
-  --brand-warm: #ff9a3d;
+  --background: #f8fbff;
+  --surface: #ffffff;
+  --surface-strong: #eef6ff;
+  --foreground: #0f172a;
+  --muted: #64748b;
+  --line: #dbe7f5;
+  --brand-red: #2563eb;
+  --brand-orange: #2563eb;
+  --brand-warm: #06b6d4;
+  --brand-blue: #2563eb;
+  --brand-cyan: #06b6d4;
+  --brand-ice: #e6f6fb;
+  --brand-navy: #0f172a;
+  --brand-slate: #64748b;
+  --brand-coral: #ff8a65;
 }
 
 @theme inline {
@@ -24,30 +30,38 @@
 
 html {
   background: var(--background);
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
   overflow-x: hidden;
-  background:
-    radial-gradient(circle at 75% -10%, rgba(255, 77, 31, 0.14), transparent 30rem),
-    linear-gradient(180deg, #090909 0%, #060606 38%, #050505 100%);
+  background: #f8fbff;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
 
 a { color: inherit; text-decoration: none; }
-button, input { font: inherit; }
+button, input, textarea, select { font: inherit; }
 
 ::selection {
-  background: rgba(255, 74, 31, 0.42);
-  color: #fff;
+  background: rgba(37, 99, 235, 0.18);
+  color: #0f172a;
 }
 
 :focus-visible {
-  outline: 2px solid var(--brand-orange);
+  outline: 2px solid var(--brand-blue);
   outline-offset: 3px;
+}
+
+.bonoa-product-theme {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 82% -8%, rgba(37, 99, 235, 0.12), transparent 30rem),
+    radial-gradient(circle at 5% 25%, rgba(6, 182, 212, 0.08), transparent 24rem),
+    linear-gradient(180deg, #fbfdff 0%, #f6faff 48%, #f8fbff 100%);
+  color: var(--brand-navy);
 }
 
 .bonoa-shell {
@@ -59,36 +73,82 @@ button, input { font: inherit; }
 .bonoa-card {
   border: 1px solid var(--line);
   background:
-    linear-gradient(145deg, rgba(255, 77, 31, 0.08), transparent 35%),
-    rgba(13, 13, 15, 0.92);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.045), 0 24px 70px rgba(0,0,0,.28);
+    linear-gradient(145deg, rgba(37, 99, 235, 0.035), transparent 38%),
+    rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 55px rgba(15, 23, 42, 0.075), inset 0 1px 0 rgba(255,255,255,.9);
 }
 
 .bonoa-glow {
-  box-shadow: 0 0 0 1px rgba(255, 81, 31, .18), 0 24px 90px rgba(255, 43, 31, .10);
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, .1), 0 28px 80px rgba(37, 99, 235, .11);
 }
 
 .brand-gradient {
-  background: linear-gradient(135deg, var(--brand-red), var(--brand-orange) 68%, var(--brand-warm));
+  background: linear-gradient(135deg, var(--brand-blue), #1d7cf2 58%, var(--brand-cyan));
 }
 
 .text-brand-gradient {
-  background: linear-gradient(90deg, #ff4938, #ff8d32);
+  background: linear-gradient(90deg, var(--brand-blue), #0ea5e9 58%, var(--brand-cyan));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 
 .progress-track {
-  background: rgba(255,255,255,.08);
+  background: #e8eef7;
 }
 
 .progress-fill {
-  background: linear-gradient(90deg, var(--brand-red), var(--brand-orange));
+  background: linear-gradient(90deg, var(--brand-blue), var(--brand-cyan));
 }
 
 .safe-bottom {
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+/* Compatibility layer for the pre-brand-system product UI. */
+.bonoa-product-theme .text-white { color: #0f172a !important; }
+.bonoa-product-theme .text-zinc-200,
+.bonoa-product-theme .text-zinc-300 { color: #334155 !important; }
+.bonoa-product-theme .text-zinc-400 { color: #475569 !important; }
+.bonoa-product-theme .text-zinc-500 { color: #64748b !important; }
+.bonoa-product-theme .text-zinc-600 { color: #94a3b8 !important; }
+.bonoa-product-theme .text-zinc-700 { color: #cbd5e1 !important; }
+.bonoa-product-theme [class*="text-orange-"] { color: #2563eb !important; }
+.bonoa-product-theme [class*="text-amber-"] { color: #0891b2 !important; }
+.bonoa-product-theme [class*="text-sky-"] { color: #0284c7 !important; }
+.bonoa-product-theme [class*="text-cyan-"] { color: #0891b2 !important; }
+.bonoa-product-theme [class*="text-emerald-"] { color: #047857 !important; }
+.bonoa-product-theme [class*="text-red-"] { color: #b91c1c !important; }
+.bonoa-product-theme [class*="border-white/"] { border-color: #dbe7f5 !important; }
+.bonoa-product-theme [class*="border-orange-"] { border-color: rgba(37, 99, 235, .2) !important; }
+.bonoa-product-theme [class*="border-amber-"] { border-color: rgba(6, 182, 212, .22) !important; }
+.bonoa-product-theme [class*="border-sky-"] { border-color: rgba(14, 165, 233, .18) !important; }
+.bonoa-product-theme [class*="border-cyan-"] { border-color: rgba(6, 182, 212, .2) !important; }
+.bonoa-product-theme [class*="border-zinc-"] { border-color: #dbe7f5 !important; }
+.bonoa-product-theme [class*="bg-black/"] { background-color: rgba(255, 255, 255, .78) !important; }
+.bonoa-product-theme [class*="bg-white/"] { background-color: rgba(37, 99, 235, .045) !important; }
+.bonoa-product-theme [class*="bg-orange-"] { background-color: rgba(37, 99, 235, .08) !important; }
+.bonoa-product-theme [class*="bg-amber-"] { background-color: rgba(6, 182, 212, .08) !important; }
+.bonoa-product-theme [class*="bg-sky-"] { background-color: rgba(14, 165, 233, .065) !important; }
+.bonoa-product-theme [class*="bg-cyan-"] { background-color: rgba(6, 182, 212, .07) !important; }
+.bonoa-product-theme [class*="bg-zinc-9"],
+.bonoa-product-theme [class*="bg-zinc-8"],
+.bonoa-product-theme [class*="bg-[#0"] { background: #ffffff !important; }
+.bonoa-product-theme [class*="divide-white/"] > :not(:last-child) { border-color: #e2e8f0 !important; }
+.bonoa-product-theme [class*="placeholder:text-zinc-"]::placeholder { color: #94a3b8 !important; }
+.bonoa-product-theme [class*="hover:bg-white/"]:hover { background-color: rgba(37, 99, 235, .08) !important; }
+.bonoa-product-theme [class*="hover:text-white"]:hover { color: #0f172a !important; }
+.bonoa-product-theme [class*="focus:border-orange"]:focus,
+.bonoa-product-theme [class*="border-t-orange-"] { border-color: rgba(37, 99, 235, .55) !important; }
+
+/* Preserve white copy when an element is intentionally filled with a brand/status color. */
+.bonoa-product-theme .brand-gradient,
+.bonoa-product-theme .brand-gradient.text-white,
+.bonoa-product-theme [class*="bg-blue-"][class*="text-white"],
+.bonoa-product-theme [class*="bg-orange-"][class*="text-white"],
+.bonoa-product-theme [class*="bg-red-"][class*="text-white"],
+.bonoa-product-theme [class*="bg-emerald-"][class*="text-white"] {
+  color: #ffffff !important;
 }
 
 @media (min-width: 768px) {

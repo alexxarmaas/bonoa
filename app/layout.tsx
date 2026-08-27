@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
+import ThemeShell from "@/components/ThemeShell";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 
 export const metadata: Metadata = {
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Bonoa",
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
   },
   formatDetection: {
     telephone: false,
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#060606",
+  themeColor: "#f8fbff",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -30,8 +31,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="es">
       <body className="antialiased">
         <AuthProvider>
-          {children}
-          <BottomNav />
+          <ThemeShell>
+            {children}
+            <BottomNav />
+          </ThemeShell>
         </AuthProvider>
       </body>
     </html>
