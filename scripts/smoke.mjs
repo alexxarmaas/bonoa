@@ -75,5 +75,24 @@ for (const check of checks) {
   }
 }
 
+try {
+  const response = await fetch(`${baseUrl}/wallet?source=technical-domain`, {
+    headers: { "x-forwarded-host": "bonoa.vercel.app" },
+    redirect: "manual",
+  });
+  const location = response.headers.get("location");
+  const expected = "https://bonoa.tramassso.com/wallet?source=technical-domain";
+
+  if (response.status !== 308 || location !== expected) {
+    console.error(`FAIL canonical domain redirect: expected 308 -> ${expected}, got ${response.status} -> ${location}`);
+    failed = true;
+  } else {
+    console.log("PASS canonical domain redirect (308)");
+  }
+} catch (error) {
+  console.error("FAIL canonical domain redirect:", error);
+  failed = true;
+}
+
 if (failed) process.exit(1);
 console.log("Bonoa smoke checks passed.");
