@@ -22,7 +22,7 @@ export default function BottomNav() {
   if (!user || pathname === "/" || standaloneFlows.some((prefix) => pathname.startsWith(prefix))) return null;
 
   return (
-    <nav className="safe-bottom fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-black/88 px-2 pt-2 backdrop-blur-xl md:hidden">
+    <nav className="safe-bottom fixed inset-x-0 bottom-0 z-50 border-t border-[#dbe7f5] bg-white/92 px-2 pt-2 shadow-[0_-12px_35px_rgba(15,23,42,.08)] backdrop-blur-xl md:hidden">
       <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
         {items.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
@@ -30,9 +30,9 @@ export default function BottomNav() {
             <Link
               key={href}
               href={href}
-              className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl text-[9px] font-semibold transition ${active ? "bg-white/8 text-white" : "text-zinc-500 hover:text-zinc-200"}`}
+              className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl text-[9px] font-bold transition ${active ? "bg-[#eff6ff] text-[#0f172a]" : "text-[#64748b] hover:bg-[#f8fbff] hover:text-[#0f172a]"}`}
             >
-              <Icon size={21} className={active ? "text-orange-400" : ""} />
+              <Icon size={21} className={active ? "text-[#2563eb]" : ""} />
               {label}
             </Link>
           );
