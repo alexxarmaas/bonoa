@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Carnets, bonos, recompensas y fidelización. Un solo QR.",
     start_url: "/wallet",
     display: "standalone",
-    background_color: "#060606",
-    theme_color: "#060606",
+    background_color: "#f8fbff",
+    theme_color: "#2563eb",
     orientation: "portrait",
     categories: ["lifestyle", "utilities", "shopping"],
     icons: [
