@@ -12,3 +12,6 @@ alter table public.redemptions
   foreign key (performed_by)
   references auth.users(id)
   on delete set null;
+
+comment on column public.redemptions.performed_by is
+  'Operator that performed the redemption. Set to NULL when the auth user is deleted so the immutable redemption history can be retained without blocking account deletion.';
