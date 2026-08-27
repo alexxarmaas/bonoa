@@ -10,6 +10,7 @@ import { friendlyError } from "@/lib/errors";
 import { supabase } from "@/lib/supabase/client";
 
 const LEGAL_VERSION = "2026-08-27";
+const MIN_PASSWORD_LENGTH = 8;
 
 function safeNextPath() {
   if (typeof window === "undefined") return "/wallet";
@@ -40,6 +41,10 @@ export default function RegisterPage() {
     const displayName = name.trim();
     if (displayName.length < 2) {
       setError("El nombre debe tener al menos 2 caracteres.");
+      return;
+    }
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setError(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`);
       return;
     }
     if (!acceptedLegal) {
@@ -111,7 +116,7 @@ export default function RegisterPage() {
             </label>
             <label className="block">
               <span className="mb-2 block text-xs font-semibold text-[#475569]">Contraseña</span>
-              <input required minLength={6} type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded-2xl border border-[#dbe7f5] bg-white px-4 py-3.5 text-sm text-[#0f172a] outline-none transition placeholder:text-[#94a3b8] focus:border-[#2563eb] focus:ring-4 focus:ring-[#2563eb]/10" placeholder="Mínimo 6 caracteres" />
+              <input required minLength={MIN_PASSWORD_LENGTH} type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded-2xl border border-[#dbe7f5] bg-white px-4 py-3.5 text-sm text-[#0f172a] outline-none transition placeholder:text-[#94a3b8] focus:border-[#2563eb] focus:ring-4 focus:ring-[#2563eb]/10" placeholder={`Mínimo ${MIN_PASSWORD_LENGTH} caracteres`} />
             </label>
 
             <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[#dbe7f5] bg-[#f8fbff] p-4">
