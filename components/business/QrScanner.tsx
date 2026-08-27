@@ -35,9 +35,7 @@ export default function QrScanner({ onResult, active = true, restartToken = 0 }:
         handled = true;
         controlsRef.current?.stop();
         controlsRef.current = null;
-        if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-          navigator.vibrate(35);
-        }
+        if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate(35);
         onResult(result.getText());
       })
       .then((controls) => {
@@ -49,10 +47,7 @@ export default function QrScanner({ onResult, active = true, restartToken = 0 }:
       })
       .catch(() => {
         if (!cancelled) {
-          setCameraError({
-            scanKey,
-            message: "No pudimos abrir la cámara. Revisa el permiso o pega el código manualmente.",
-          });
+          setCameraError({ scanKey, message: "No pudimos abrir la cámara. Revisa el permiso o pega el código manualmente." });
         }
       });
 
@@ -73,40 +68,34 @@ export default function QrScanner({ onResult, active = true, restartToken = 0 }:
   const visibleError = cameraError?.scanKey === scanKey ? cameraError.message : null;
 
   return (
-    <div className="overflow-hidden rounded-[1.6rem] border border-white/10 bg-black">
-      <div className="relative aspect-[4/3] bg-zinc-950">
+    <div className="overflow-hidden rounded-[1.6rem] border border-[#dbe7f5] bg-white shadow-[0_18px_50px_rgba(15,23,42,.07)]">
+      <div className="relative aspect-[4/3]" style={{ backgroundColor: "#020617" }}>
         <video ref={videoRef} muted playsInline className="h-full w-full object-cover" />
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
-          <div className="h-[58%] w-[58%] rounded-[1.5rem] border-2 border-orange-400/70 shadow-[0_0_0_999px_rgba(0,0,0,.36)]" />
+          <div className="h-[58%] w-[58%] rounded-[1.5rem] border-2 border-[#38bdf8] shadow-[0_0_0_999px_rgba(2,6,23,.38)]" />
         </div>
         {!active ? (
-          <div className="absolute inset-0 grid place-items-center bg-black/85 p-6 text-center">
+          <div className="absolute inset-0 grid place-items-center p-6 text-center" style={{ backgroundColor: "rgba(2,6,23,.88)" }}>
             <div>
-              <MdPauseCircleOutline size={42} className="mx-auto text-emerald-300/70" />
-              <p className="mt-3 text-xs font-black text-white">Cliente activo</p>
-              <p className="mt-1 text-[10px] leading-5 text-zinc-500">La cámara se reactivará al terminar con este cliente.</p>
+              <MdPauseCircleOutline size={42} className="mx-auto text-[#5eead4]" />
+              <p className="mt-3 text-xs font-black" style={{ color: "#ffffff" }}>Cliente activo</p>
+              <p className="mt-1 text-[10px] leading-5" style={{ color: "#94a3b8" }}>La cámara se reactivará al terminar con este cliente.</p>
             </div>
           </div>
         ) : visibleError ? (
-          <div className="absolute inset-0 grid place-items-center bg-black/75"><MdQrCodeScanner size={42} className="text-orange-300" /></div>
+          <div className="absolute inset-0 grid place-items-center" style={{ backgroundColor: "rgba(2,6,23,.78)" }}><MdQrCodeScanner size={42} className="text-[#67e8f9]" /></div>
         ) : null}
       </div>
       <div className="flex items-center justify-between gap-3 p-4">
         <div>
-          <p className="text-xs font-bold text-white">Escáner Bonoa</p>
-          <p className="mt-1 text-[10px] text-zinc-600">{active ? "Apunta al QR de la wallet del cliente." : "En pausa para evitar cambiar de cliente por accidente."}</p>
+          <p className="text-xs font-bold text-[#0f172a]">Escáner Bonoa</p>
+          <p className="mt-1 text-[10px] text-[#64748b]">{active ? "Apunta al QR de la wallet del cliente." : "En pausa para evitar cambiar de cliente por accidente."}</p>
         </div>
-        <button
-          type="button"
-          onClick={restart}
-          disabled={!active}
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/10 bg-white/5 text-zinc-300 disabled:cursor-not-allowed disabled:opacity-30"
-          aria-label="Reiniciar cámara"
-        >
+        <button type="button" onClick={restart} disabled={!active} className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[#dbe7f5] bg-[#f8fbff] text-[#2563eb] transition hover:bg-[#eff6ff] disabled:cursor-not-allowed disabled:opacity-30" aria-label="Reiniciar cámara">
           <MdCameraswitch size={20} />
         </button>
       </div>
-      {visibleError ? <p className="border-t border-white/8 px-4 py-3 text-xs text-amber-200/80">{visibleError}</p> : null}
+      {visibleError ? <p className="border-t border-[#dbe7f5] bg-[#ecfeff] px-4 py-3 text-xs text-[#0e7490]">{visibleError}</p> : null}
     </div>
   );
 }
