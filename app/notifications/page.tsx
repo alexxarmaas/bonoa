@@ -66,7 +66,7 @@ function NotificationsContent() {
     <main className="bonoa-shell pb-24">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Link href="/" className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:text-white" aria-label="Volver"><MdArrowBack size={20} /></Link>
+          <Link href="/wallet" className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:text-white" aria-label="Volver a la wallet"><MdArrowBack size={20} /></Link>
           <div><p className="text-[10px] font-bold uppercase tracking-[0.24em] text-orange-300">Bonoa te avisa</p><h1 className="mt-1 text-2xl font-black tracking-tight text-white">Notificaciones</h1></div>
         </div>
         <button type="button" onClick={() => void readAll()} disabled={!unread || busy} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-black text-zinc-300 disabled:opacity-40"><MdDoneAll size={17} /> Marcar todo como leído</button>
