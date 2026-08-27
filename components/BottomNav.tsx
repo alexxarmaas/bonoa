@@ -6,7 +6,7 @@ import { MdHistory, MdNotificationsNone, MdPersonOutline, MdQrCode2, MdWallet } 
 import { useAuth } from "@/components/auth/AuthProvider";
 
 const items = [
-  { href: "/", label: "Wallet", icon: MdWallet },
+  { href: "/wallet", label: "Wallet", icon: MdWallet },
   { href: "/qr", label: "QR", icon: MdQrCode2 },
   { href: "/history", label: "Historial", icon: MdHistory },
   { href: "/notifications", label: "Avisos", icon: MdNotificationsNone },
@@ -19,13 +19,13 @@ export default function BottomNav() {
   const pathname = usePathname();
   const { user } = useAuth();
 
-  if (!user || standaloneFlows.some((prefix) => pathname.startsWith(prefix))) return null;
+  if (!user || pathname === "/" || standaloneFlows.some((prefix) => pathname.startsWith(prefix))) return null;
 
   return (
     <nav className="safe-bottom fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-black/88 px-2 pt-2 backdrop-blur-xl md:hidden">
       <div className="mx-auto grid max-w-lg grid-cols-5 gap-1">
         {items.map(({ href, label, icon: Icon }) => {
-          const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+          const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
             <Link
               key={href}
