@@ -13,7 +13,7 @@ const items = [
   { href: "/profile", label: "Perfil", icon: MdPersonOutline },
 ];
 
-const standaloneFlows = ["/login", "/register", "/forgot-password", "/reset-password", "/business"];
+const standaloneFlows = ["/login", "/register", "/forgot-password", "/reset-password", "/business", "/demo", "/c/", "/promo/", "/r/"];
 
 export default function BottomNav() {
   const pathname = usePathname();
