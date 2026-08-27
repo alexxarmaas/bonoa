@@ -119,10 +119,12 @@ Estas pruebas solo aplican cuando existan credenciales reales de emisor; la ause
 
 - [ ] Sin credenciales, Bonoa no muestra un botón engañoso como si la emisión estuviera operativa.
 - [ ] Google Wallet: el servidor firma el JWT con credenciales privadas y el cliente recibe una URL `Save to Google Wallet` válida.
-- [ ] Google Wallet: el carnet añadido contiene nombre del comercio y QR universal de Bonoa.
+- [ ] Google Wallet: el carnet muestra el negocio y ofrece un enlace `Abrir mi QR Bonōa` hacia `/qr`; no incrusta una copia estática del QR rotatorio.
 - [ ] Apple Wallet: el firmador devuelve un `.pkpass` firmado con Pass Type ID/certificado válidos.
-- [ ] Apple Wallet: el carnet añadido contiene nombre del comercio y QR universal de Bonoa.
+- [ ] Apple Wallet: el carnet muestra el negocio y ofrece acceso al QR vigente de Bonoa; no incrusta una copia estática del QR rotatorio.
+- [ ] Rotar el QR en Bonoa invalida el QR anterior sin dejar una credencial antigua utilizable dentro de Apple/Google Wallet.
 - [ ] Ninguna clave privada, certificado ni token de firma se expone en variables `NEXT_PUBLIC_*` ni en el navegador.
+- [ ] La actualización nativa de objetos Google Wallet / pases Apple queda como mejora posterior si queremos mostrar un barcode directamente en el carnet sin abrir Bonoa.
 
 ## 4. Comercio listo para piloto
 
