@@ -50,7 +50,8 @@ function WalletContent() {
   }, [user]);
 
   useEffect(() => {
-    void loadWallet();
+    const timer = window.setTimeout(() => { void loadWallet(); }, 0);
+    return () => window.clearTimeout(timer);
   }, [loadWallet]);
 
   useEffect(() => {
