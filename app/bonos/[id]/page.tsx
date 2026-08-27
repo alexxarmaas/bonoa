@@ -54,7 +54,7 @@ function PassDetailContent() {
   if (loading) return <main className="bonoa-shell"><div className="bonoa-card mt-16 h-96 animate-pulse rounded-[2rem]" /></main>;
 
   if (!pass || error) {
-    return <main className="bonoa-shell"><Link href="/" className="inline-flex items-center gap-2 text-xs font-bold text-zinc-400 hover:text-white"><MdArrowBack size={18} /> Volver a la wallet</Link><div className="mt-8 rounded-[2rem] border border-red-400/15 bg-red-400/5 p-8 text-center text-sm text-red-200">{error || "Bono no encontrado."}</div></main>;
+    return <main className="bonoa-shell"><Link href="/wallet" className="inline-flex items-center gap-2 text-xs font-bold text-zinc-400 hover:text-white"><MdArrowBack size={18} /> Volver a la wallet</Link><div className="mt-8 rounded-[2rem] border border-red-400/15 bg-red-400/5 p-8 text-center text-sm text-red-200">{error || "Bono no encontrado."}</div></main>;
   }
 
   const isBalance = pass.productType === "balance";
@@ -64,7 +64,7 @@ function PassDetailContent() {
   return (
     <main className="bonoa-shell pb-24">
       <header className="flex items-center gap-4">
-        <Link href="/" className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:text-white" aria-label="Volver"><MdArrowBack size={20} /></Link>
+        <Link href="/wallet" className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:text-white" aria-label="Volver a la wallet"><MdArrowBack size={20} /></Link>
         <div><p className="text-[10px] font-bold uppercase tracking-[0.24em]" style={{ color: accent }}>{pass.businessName}</p><h1 className="mt-1 text-xl font-black tracking-tight text-white">{pass.productName}</h1></div>
       </header>
 

@@ -9,9 +9,9 @@ import { friendlyError } from "@/lib/errors";
 import { supabase } from "@/lib/supabase/client";
 
 function safeNextPath() {
-  if (typeof window === "undefined") return "/";
+  if (typeof window === "undefined") return "/wallet";
   const value = new URLSearchParams(window.location.search).get("next");
-  return value && value.startsWith("/") && !value.startsWith("//") ? value : "/";
+  return value && value.startsWith("/") && !value.startsWith("//") ? value : "/wallet";
 }
 
 export default function LoginPage() {
@@ -44,14 +44,14 @@ export default function LoginPage() {
 
   const goToRegister = () => {
     const next = safeNextPath();
-    router.push(next === "/" ? "/register" : `/register?next=${encodeURIComponent(next)}`);
+    router.push(next === "/wallet" ? "/register" : `/register?next=${encodeURIComponent(next)}`);
   };
 
   return (
     <main className="bonoa-shell grid min-h-screen place-items-center py-10">
       <section className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <Link href="/login" className="text-3xl font-black tracking-[-0.05em] text-white">bon<span className="text-brand-gradient">ō</span>a</Link>
+          <Link href="/" className="text-3xl font-black tracking-[-0.05em] text-white">bon<span className="text-brand-gradient">ō</span>a</Link>
           <p className="mt-3 text-sm text-zinc-500">Tus bonos, beneficios y fidelizaciones.</p>
         </div>
 

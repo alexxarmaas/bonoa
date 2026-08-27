@@ -9,9 +9,9 @@ import { friendlyError } from "@/lib/errors";
 import { supabase } from "@/lib/supabase/client";
 
 function safeNextPath() {
-  if (typeof window === "undefined") return "/";
+  if (typeof window === "undefined") return "/wallet";
   const value = new URLSearchParams(window.location.search).get("next");
-  return value && value.startsWith("/") && !value.startsWith("//") ? value : "/";
+  return value && value.startsWith("/") && !value.startsWith("//") ? value : "/wallet";
 }
 
 export default function RegisterPage() {
@@ -41,7 +41,7 @@ export default function RegisterPage() {
 
     setLoading(true);
     const next = safeNextPath();
-    const loginDestination = next === "/" ? "/login?confirmed=1" : `/login?confirmed=1&next=${encodeURIComponent(next)}`;
+    const loginDestination = next === "/wallet" ? "/login?confirmed=1" : `/login?confirmed=1&next=${encodeURIComponent(next)}`;
     const emailRedirectTo = `${window.location.origin}${loginDestination}`;
     const { data, error: signUpError } = await supabase.auth.signUp({
       email: email.trim(),
@@ -69,14 +69,14 @@ export default function RegisterPage() {
 
   const goToLogin = () => {
     const next = safeNextPath();
-    router.push(next === "/" ? "/login" : `/login?next=${encodeURIComponent(next)}`);
+    router.push(next === "/wallet" ? "/login" : `/login?next=${encodeURIComponent(next)}`);
   };
 
   return (
     <main className="bonoa-shell grid min-h-screen place-items-center py-10">
       <section className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <Link href="/register" className="text-3xl font-black tracking-[-0.05em] text-white">bon<span className="text-brand-gradient">ō</span>a</Link>
+          <Link href="/" className="text-3xl font-black tracking-[-0.05em] text-white">bon<span className="text-brand-gradient">ō</span>a</Link>
           <p className="mt-3 text-sm text-zinc-500">Una cuenta. Una wallet. Un solo QR.</p>
         </div>
 

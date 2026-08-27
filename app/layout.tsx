@@ -5,8 +5,8 @@ import { AuthProvider } from "@/components/auth/AuthProvider";
 
 export const metadata: Metadata = {
   applicationName: "Bonoa",
-  title: "Bonoa | Todos tus bonos en un solo lugar",
-  description: "Tus bonos, beneficios y fidelizaciones. Un solo QR.",
+  title: "Bonoa | Wallet digital de fidelización",
+  description: "Carnets, bonos, recompensas y beneficios. Un solo QR.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
