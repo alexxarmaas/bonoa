@@ -6,6 +6,9 @@ const checks = [
   { path: "/register", status: 200 },
   { path: "/forgot-password", status: 200 },
   { path: "/reset-password", status: 200 },
+  { path: "/privacidad", status: 200 },
+  { path: "/terminos", status: 200 },
+  { path: "/opengraph-image", status: 200 },
   { path: "/demo/business", status: 200 },
   { path: "/promo/smoke-test-code", status: 200 },
   { path: "/sw.js", status: 200 },
@@ -75,6 +78,24 @@ for (const check of checks) {
     console.error(`FAIL ${check.path}:`, error);
     failed = true;
   }
+}
+
+try {
+  const response = await fetch(`${baseUrl}/api/client-error`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "sec-fetch-site": "same-origin" },
+    body: JSON.stringify({ message: "smoke-test-client-error", name: "SmokeTest", path: "/smoke" }),
+  });
+  const value = await response.json();
+  if (response.status !== 200 || value?.ok !== true) {
+    console.error(`FAIL client error reporting: expected 200/ok, got ${response.status}`);
+    failed = true;
+  } else {
+    console.log("PASS client error reporting (200)");
+  }
+} catch (error) {
+  console.error("FAIL client error reporting:", error);
+  failed = true;
 }
 
 try {
