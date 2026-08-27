@@ -6,7 +6,10 @@ import LandingLegalBar from "@/components/landing/LandingLegalBar";
 
 export default function ThemeShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const usesNativeLightTheme = pathname === "/" || pathname.startsWith("/demo");
+  const usesNativeLightTheme = pathname === "/"
+    || pathname === "/privacidad"
+    || pathname === "/terminos"
+    || pathname.startsWith("/demo");
 
   return (
     <div className={usesNativeLightTheme ? "min-h-screen" : "bonoa-product-theme min-h-screen"}>
