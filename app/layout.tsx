@@ -11,10 +11,7 @@ const canonicalOrigin = "https://bonoa.tramassso.com";
 export const metadata: Metadata = {
   metadataBase: new URL(canonicalOrigin),
   applicationName: "Bonoa",
-  title: {
-    default: "Bonoa | Wallet digital de fidelización",
-    template: "%s | Bonoa",
-  },
+  title: "Bonoa | Wallet digital de fidelización",
   description: "Carnets, bonos, recompensas y beneficios. Un solo QR.",
   alternates: { canonical: "/" },
   manifest: "/manifest.webmanifest",
