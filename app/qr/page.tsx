@@ -64,7 +64,7 @@ function QrContent() {
   return (
     <main className="bonoa-shell flex min-h-screen flex-col">
       <header className="flex items-center justify-between">
-        <Link href="/" className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:text-white" aria-label="Volver"><MdArrowBack size={20} /></Link>
+        <Link href="/wallet" className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:text-white" aria-label="Volver a la wallet"><MdArrowBack size={20} /></Link>
         <span className="text-sm font-black tracking-tight text-white">Mi QR</span>
         <span className="h-10 w-10" />
       </header>
