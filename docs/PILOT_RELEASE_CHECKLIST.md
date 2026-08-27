@@ -44,7 +44,40 @@ Usar una cuenta cliente y una cuenta del negocio distintas. No validar el piloto
 
 ## 3. E2E de fidelización
 
-### Campaña compartible
+### Carnet permanente y objetivo incremental
+
+1. Usar un cliente sin relación previa con el comercio.
+2. Registrar su primera compra o visita y confirmar que aparece automáticamente un carnet del comercio en `Mis carnets`.
+3. Confirmar que el carnet permanece visible aunque el cliente no tenga ningún bono consumible activo.
+4. Crear un objetivo `2 compras de al menos 50 € → premio B`.
+5. Registrar una compra de 49 €: debe aparecer en el historial, pero no aumentar el progreso del objetivo.
+6. Registrar una compra de 50 €: el carnet debe mostrar `1 / 2`.
+7. Registrar una compra de 75 €: el carnet debe completar `2 / 2` y emitir exactamente un premio B.
+8. Confirmar que el premio aparece en `Mis bonos y premios`, separado del carnet.
+9. Si la regla es repetible, confirmar que el carnet inicia el siguiente ciclo sin perder la antigüedad ni la relación con el comercio.
+10. Reintentar una operación con el mismo `request_id`: no debe sumar progreso ni emitir premio dos veces.
+
+### Recibos e historial
+
+- [ ] Compra registrada muestra comercio, importe, fecha y referencia de operación.
+- [ ] Visita registrada aparece en el feed aunque no tenga importe.
+- [ ] Emisión de bono aparece como movimiento independiente.
+- [ ] Premio automático aparece como movimiento independiente.
+- [ ] Reclamación de campaña aparece como movimiento independiente.
+- [ ] Consumo muestra saldo anterior y saldo posterior correctos.
+- [ ] La referencia `OP-...` es estable para la operación y no expone PII.
+
+### Centro de notificaciones
+
+- [ ] Compra genera aviso al cliente.
+- [ ] Visita genera aviso al cliente.
+- [ ] Consumo de bono genera aviso con saldo restante.
+- [ ] Premio automático genera aviso de `Premio desbloqueado`.
+- [ ] Reclamación de campaña genera aviso.
+- [ ] Se puede marcar un aviso como leído.
+- [ ] `Marcar todo como leído` solo afecta a la wallet autenticada.
+
+### Campaña compartible y segmentada
 
 1. Crear un producto promocional activo en Catálogo.
 2. En `Fidelización`, crear una campaña con límite de reclamaciones y fecha de fin.
@@ -55,6 +88,9 @@ Usar una cuenta cliente y una cuenta del negocio distintas. No validar el piloto
 7. Comprobar que el contador de reclamaciones solo aumenta una vez.
 8. Pausar la campaña y confirmar que una wallet nueva ya no puede reclamarla.
 9. Repetir con una campaña agotada por `max_claims` y confirmar el estado público correcto.
+10. Crear una campaña `En riesgo` y confirmar que un cliente de otro segmento recibe `campaign_not_eligible`.
+11. Confirmar que un cliente del segmento objetivo sí puede reclamarla una vez.
+12. Repetir la validación con `Nuevos`, `Activos` o `Fieles` según los datos de prueba.
 
 ### Recompensa automática
 
@@ -72,9 +108,21 @@ Usar una cuenta cliente y una cuenta del negocio distintas. No validar el piloto
 - [ ] `Clientes` muestra códigos pseudónimos `CL-...`, nunca email/nombre/token QR.
 - [ ] Una wallet reciente se clasifica como `Nuevo`.
 - [ ] La recurrencia actualiza el segmento y los contadores.
-- [ ] Un cliente con historial de consumo y >45 días de inactividad aparece como `En riesgo`.
-- [ ] Clientes con >=5 consumos o >=3 bonos aparecen como `Fieles`.
+- [ ] Un cliente con actividad y >45 días de inactividad aparece como `En riesgo`.
+- [ ] Un cliente aparece como `Fiel` si cumple al menos uno: >=5 compras, >=8 visitas, >=5 consumos/redenciones o >=2 premios.
 - [ ] La tasa de recurrentes coincide con los datos de prueba.
+- [ ] El dashboard muestra correctamente clientes en riesgo, cercanos a premio y nuevos de la semana.
+
+### Apple Wallet / Google Wallet
+
+Estas pruebas solo aplican cuando existan credenciales reales de emisor; la ausencia de credenciales no debe bloquear el resto del piloto.
+
+- [ ] Sin credenciales, Bonoa no muestra un botón engañoso como si la emisión estuviera operativa.
+- [ ] Google Wallet: el servidor firma el JWT con credenciales privadas y el cliente recibe una URL `Save to Google Wallet` válida.
+- [ ] Google Wallet: el carnet añadido contiene nombre del comercio y QR universal de Bonoa.
+- [ ] Apple Wallet: el firmador devuelve un `.pkpass` firmado con Pass Type ID/certificado válidos.
+- [ ] Apple Wallet: el carnet añadido contiene nombre del comercio y QR universal de Bonoa.
+- [ ] Ninguna clave privada, certificado ni token de firma se expone en variables `NEXT_PUBLIC_*` ni en el navegador.
 
 ## 4. Comercio listo para piloto
 
@@ -89,6 +137,7 @@ Usar una cuenta cliente y una cuenta del negocio distintas. No validar el piloto
 - [ ] Cartel QR A4 generado y legible a distancia razonable.
 - [ ] Modo mostrador probado en móvil/tablet.
 - [ ] Owner y staff/manager necesarios configurados.
+- [ ] Al menos un objetivo de carnet preparado para la demo.
 - [ ] Al menos una campaña de ejemplo preparada para la demo.
 - [ ] Si se usan premios automáticos, sus productos-regalo tienen coste/margen asumible para el comercio.
 
@@ -97,11 +146,12 @@ Usar una cuenta cliente y una cuenta del negocio distintas. No validar el piloto
 - [ ] El comercio solo consulta bonos y métricas de su propio negocio.
 - [ ] El escaneo no revela PII del cliente.
 - [ ] El radar de fidelización usa identificadores pseudónimos, no PII.
-- [ ] Campañas, claims, reglas y grants no tienen acceso directo desde `anon`/`authenticated`; pasan por RPC controladas.
+- [ ] Carnets, notificaciones, campañas, claims, reglas y grants no tienen acceso directo desde `anon`/`authenticated`; pasan por RPC controladas.
 - [ ] La lectura pública de campañas expone solo ficha comercial y datos del premio.
 - [ ] Las mutaciones de wallet, passes y redemptions pasan por RPC controladas.
 - [ ] El feed de auditoría solo está disponible para owner/manager.
 - [ ] Exportaciones CSV no incluyen PII innecesaria.
+- [ ] Endpoints de Wallet digital verifican la sesión y que el carnet pertenece al usuario autenticado antes de emitir.
 
 ## 6. Tramassso
 
