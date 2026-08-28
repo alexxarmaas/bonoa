@@ -7,7 +7,8 @@ import { MdArrowBack, MdLockClock, MdRocketLaunch } from "react-icons/md";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getBusinessAccess } from "@/lib/business-data";
 
-type GateState = "checking" | "allowed" | "staff-blocked" | "error";
+type GateStatus = "allowed" | "staff-blocked" | "error";
+type GateState = { key: string; status: GateStatus } | null;
 
 export default function BusinessOnboardingGate({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
@@ -15,7 +16,8 @@ export default function BusinessOnboardingGate({ children }: { children: React.R
   const pathname = usePathname();
   const router = useRouter();
   const onboardingPath = `/business/${businessId}/onboarding`;
-  const [state, setState] = useState<GateState>("checking");
+  const gateKey = user ? `${user.id}:${businessId}` : "";
+  const [state, setState] = useState<GateState>(null);
 
   useEffect(() => {
     if (pathname === onboardingPath || authLoading || !user) return;
@@ -28,7 +30,7 @@ export default function BusinessOnboardingGate({ children }: { children: React.R
         // Each page already owns its normal access-denied UX. The gate only adds
         // the onboarding requirement for users that actually belong to the business.
         if (!access || access.business.onboarding_completed_at) {
-          setState("allowed");
+          setState({ key: gateKey, status: "allowed" });
           return;
         }
 
@@ -37,20 +39,22 @@ export default function BusinessOnboardingGate({ children }: { children: React.R
           return;
         }
 
-        setState("staff-blocked");
+        setState({ key: gateKey, status: "staff-blocked" });
       })
       .catch(() => {
-        if (active) setState("error");
+        if (active) setState({ key: gateKey, status: "error" });
       });
 
     return () => {
       active = false;
     };
-  }, [authLoading, businessId, onboardingPath, pathname, router, user]);
+  }, [authLoading, businessId, gateKey, onboardingPath, pathname, router, user]);
 
   if (pathname === onboardingPath || authLoading || !user) return <>{children}</>;
 
-  if (state === "checking") {
+  const currentStatus = state?.key === gateKey ? state.status : null;
+
+  if (!currentStatus) {
     return (
       <main className="bonoa-shell grid min-h-[60vh] place-items-center">
         <div className="text-center">
@@ -61,7 +65,7 @@ export default function BusinessOnboardingGate({ children }: { children: React.R
     );
   }
 
-  if (state === "staff-blocked") {
+  if (currentStatus === "staff-blocked") {
     return (
       <main className="bonoa-shell min-h-[70vh]">
         <section className="bonoa-card mx-auto mt-16 max-w-xl rounded-[2rem] p-8 text-center">
@@ -75,7 +79,7 @@ export default function BusinessOnboardingGate({ children }: { children: React.R
     );
   }
 
-  if (state === "error") {
+  if (currentStatus === "error") {
     return (
       <main className="bonoa-shell min-h-[70vh]">
         <section className="bonoa-card mx-auto mt-16 max-w-xl rounded-[2rem] p-8 text-center">
