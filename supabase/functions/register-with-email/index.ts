@@ -1,13 +1,18 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.110.1";
+import nodemailer from "npm:nodemailer@^9";
 
 const PROD_ORIGIN = "https://bonoa.tramassso.com";
 const LEGAL_VERSION = "2026-08-27";
 const SMTP_HOST = Deno.env.get("BONOA_SMTP_HOST") || "authsmtp.securemail.pro";
 const SMTP_PORT = Number(Deno.env.get("BONOA_SMTP_PORT") || "465");
 const SMTP_FROM_NAME = Deno.env.get("BONOA_SMTP_FROM_NAME") || "Bonōa";
-const encoder = new TextEncoder();
-const decoder = new TextDecoder();
+
+type SmtpError = Error & {
+  code?: string;
+  responseCode?: number;
+  command?: string;
+};
 
 function isAllowedOrigin(origin: string | null) {
   if (!origin) return false;
@@ -27,7 +32,11 @@ function corsHeaders(origin: string) {
 function json(origin: string, body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders(origin), "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
+    headers: {
+      ...corsHeaders(origin),
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
   });
 }
 
@@ -38,7 +47,7 @@ function getAdminKey() {
       const parsed = JSON.parse(modernKeys) as Record<string, string>;
       if (parsed.default) return parsed.default;
     } catch {
-      // Fall back to the legacy service-role key below.
+      // Fall back to legacy service role key.
     }
   }
   return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
@@ -53,67 +62,27 @@ function isValidEmail(value: string) {
   return value.length <= 320 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-function base64Utf8(value: string) {
-  const bytes = encoder.encode(value);
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
-
-function wrapBase64(value: string) {
-  return value.match(/.{1,76}/g)?.join("\r\n") || "";
-}
-
 function escapeHtml(value: string) {
-  return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] || char);
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  let timer: number | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(label)), ms);
-  });
-  return Promise.race([promise, timeout]).finally(() => {
-    if (timer !== undefined) clearTimeout(timer);
-  });
-}
-
-async function writeAll(conn: Deno.Conn, value: string) {
-  const bytes = encoder.encode(value);
-  let offset = 0;
-  while (offset < bytes.length) {
-    offset += await withTimeout(conn.write(bytes.subarray(offset)), 15_000, "SMTP write timeout");
-  }
-}
-
-async function readSmtpResponse(conn: Deno.Conn) {
-  let text = "";
-  const chunk = new Uint8Array(4096);
-  while (true) {
-    const count = await withTimeout(conn.read(chunk), 20_000, "SMTP response timeout");
-    if (count === null) throw new Error("SMTP connection closed unexpectedly");
-    text += decoder.decode(chunk.subarray(0, count), { stream: true });
-    const lines = text.split("\r\n").filter(Boolean);
-    const first = lines[0]?.match(/^(\d{3})([ -])/);
-    if (!first) continue;
-    const code = Number(first[1]);
-    if (first[2] === " " || lines.some((line) => line.startsWith(`${first[1]} `))) {
-      return { code, text: lines.join(" | ") };
-    }
-  }
-}
-
-async function expect(conn: Deno.Conn, command: string | null, accepted: number[]) {
-  if (command !== null) await writeAll(conn, `${command}\r\n`);
-  const response = await readSmtpResponse(conn);
-  if (!accepted.includes(response.code)) throw new Error(`SMTP rejected command (${response.code})`);
-  return response;
+  return value.replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  })[char] || char);
 }
 
 function confirmationEmail(name: string, actionLink: string) {
   const safeName = escapeHtml(name);
   const safeLink = escapeHtml(actionLink);
   return `<!doctype html><html lang="es"><body style="margin:0;background:#f5f8fc;font-family:Arial,sans-serif;color:#0f172a"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding:32px 16px"><tr><td align="center"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#fff;border:1px solid #dbe7f5;border-radius:24px;padding:32px"><tr><td><div style="font-size:24px;font-weight:800;margin-bottom:24px">Bonōa</div><h1 style="font-size:24px;line-height:1.25;margin:0 0 16px">Confirma tu cuenta</h1><p style="font-size:15px;line-height:1.7;color:#475569">Hola ${safeName}. Confirma tu correo para activar tu wallet y tu QR personal.</p><p style="margin:28px 0"><a href="${safeLink}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;font-weight:700;padding:14px 22px;border-radius:999px">Confirmar mi cuenta</a></p><p style="font-size:12px;line-height:1.6;color:#64748b">Si el botón no funciona, copia y pega este enlace en tu navegador:</p><p style="font-size:12px;line-height:1.6;word-break:break-all;color:#2563eb">${safeLink}</p><p style="font-size:12px;line-height:1.6;color:#94a3b8;margin-top:28px">Si no has creado una cuenta en Bonōa, puedes ignorar este correo.</p></td></tr></table></td></tr></table></body></html>`;
+}
+
+function smtpFailureStatus(error: SmtpError) {
+  if (error.code === "ETIMEDOUT") return 504;
+  if (error.code === "EAUTH" || error.responseCode === 535 || error.responseCode === 534) return 502;
+  if (typeof error.responseCode === "number" && error.responseCode >= 500) return 502;
+  return 503;
 }
 
 async function sendConfirmationEmail(recipient: string, name: string, actionLink: string) {
@@ -123,46 +92,33 @@ async function sendConfirmationEmail(recipient: string, name: string, actionLink
   if (!isValidEmail(username) || /[\r\n]/.test(username)) throw new Error("SMTP sender is invalid");
   if (!Number.isInteger(SMTP_PORT) || SMTP_PORT <= 0 || SMTP_PORT > 65535) throw new Error("SMTP port is invalid");
 
-  const conn = await withTimeout(Deno.connectTls({ hostname: SMTP_HOST, port: SMTP_PORT }), 20_000, "SMTP connection timeout");
+  const transport = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_PORT === 465,
+    auth: { user: username, pass: password },
+    authMethod: "LOGIN",
+    connectionTimeout: 20_000,
+    greetingTimeout: 20_000,
+    socketTimeout: 30_000,
+    tls: { servername: SMTP_HOST },
+  });
+
   try {
-    await expect(conn, null, [220]);
-    await expect(conn, "EHLO bonoa.tramassso.com", [250]);
-    await expect(conn, "AUTH LOGIN", [334]);
-    await expect(conn, btoa(username), [334]);
-    await expect(conn, btoa(password), [235]);
-    await expect(conn, `MAIL FROM:<${username}>`, [250]);
-    await expect(conn, `RCPT TO:<${recipient}>`, [250, 251]);
-    await expect(conn, "DATA", [354]);
-
-    const subject = `=?UTF-8?B?${base64Utf8("Confirma tu cuenta de Bonōa")}?=`;
-    const fromName = `=?UTF-8?B?${base64Utf8(SMTP_FROM_NAME)}?=`;
-    const html = confirmationEmail(name, actionLink);
-    const message = [
-      `Date: ${new Date().toUTCString()}`,
-      `Message-ID: <${crypto.randomUUID()}@tramassso.com>`,
-      `From: ${fromName} <${username}>`,
-      `To: <${recipient}>`,
-      `Subject: ${subject}`,
-      "MIME-Version: 1.0",
-      "Content-Type: text/html; charset=UTF-8",
-      "Content-Transfer-Encoding: base64",
-      "Auto-Submitted: auto-generated",
-      "X-Auto-Response-Suppress: All",
-      "",
-      wrapBase64(base64Utf8(html)),
-      "",
-    ].join("\r\n");
-
-    await writeAll(conn, `${message}.\r\n`);
-    await expect(conn, null, [250]);
-
-    try {
-      await expect(conn, "QUIT", [221]);
-    } catch {
-      // Once DATA returns 250 the message was accepted; QUIT is best-effort.
-    }
+    await transport.sendMail({
+      from: { name: SMTP_FROM_NAME, address: username },
+      to: recipient,
+      subject: "Confirma tu cuenta de Bonōa",
+      text: `Hola ${name}. Confirma tu cuenta de Bonōa abriendo este enlace: ${actionLink}`,
+      html: confirmationEmail(name, actionLink),
+      envelope: { from: username, to: recipient },
+      headers: {
+        "Auto-Submitted": "auto-generated",
+        "X-Auto-Response-Suppress": "All",
+      },
+    });
   } finally {
-    try { conn.close(); } catch { /* already closed */ }
+    transport.close();
   }
 }
 
@@ -229,11 +185,16 @@ Deno.serve(async (req: Request) => {
 
   try {
     await sendConfirmationEmail(email, name, data.properties.action_link);
-  } catch (smtpError) {
+  } catch (rawError) {
+    const smtpError = rawError as SmtpError;
     const cleanup = await supabaseAdmin.auth.admin.deleteUser(data.user.id);
     if (cleanup.error) console.error("register-with-email cleanup failed", { status: cleanup.error.status, code: cleanup.error.code });
-    console.error("register-with-email SMTP delivery failed", { message: smtpError instanceof Error ? smtpError.message : "unknown SMTP error" });
-    return json(origin!, { message: "No se ha podido enviar el correo de confirmación. Inténtalo de nuevo." }, 503);
+    console.error("register-with-email SMTP delivery failed", {
+      code: smtpError.code || "unknown",
+      responseCode: smtpError.responseCode || null,
+      command: smtpError.command || null,
+    });
+    return json(origin!, { message: "No se ha podido enviar el correo de confirmación. Inténtalo de nuevo." }, smtpFailureStatus(smtpError));
   }
 
   return json(origin!, { ok: true, message: "Cuenta creada. Revisa tu correo para confirmar el acceso." });
