@@ -1,12 +1,13 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MdArrowBack, MdBadge, MdEdit, MdEmail, MdLockReset, MdLogout, MdOpenInNew, MdSave, MdSecurity, MdStorefront } from "react-icons/md";
+import { MdAdminPanelSettings, MdArrowBack, MdBadge, MdEdit, MdEmail, MdLockReset, MdLogout, MdOpenInNew, MdSave, MdSecurity, MdStorefront } from "react-icons/md";
 import AccountPrivacyPanel from "@/components/AccountPrivacyPanel";
 import AuthGuard from "@/components/auth/AuthGuard";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { isPlatformAdmin } from "@/lib/admin-data";
 import { friendlyError } from "@/lib/errors";
 import { supabase } from "@/lib/supabase/client";
 
@@ -19,8 +20,18 @@ function ProfileContent() {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [platformAdmin, setPlatformAdmin] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    isPlatformAdmin()
+      .then((value) => { if (active) setPlatformAdmin(value); })
+      .catch(() => { if (active) setPlatformAdmin(false); });
+    return () => { active = false; };
+  }, [user]);
 
   const logout = async () => {
     await signOut();
@@ -90,9 +101,11 @@ function ProfileContent() {
           <div className="flex items-center gap-3 py-4 text-sm text-zinc-300"><MdBadge className="text-orange-300" size={20} /> Identidad Bonoa activa</div>
           <div className="flex min-w-0 items-center gap-3 py-4 text-sm text-zinc-300"><MdEmail className="shrink-0 text-orange-300" size={20} /><span className="truncate">{profile?.email || user?.email}</span></div>
           <div className="flex items-center gap-3 py-4 text-sm text-zinc-300"><MdSecurity className="text-orange-300" size={20} /> Sesión protegida por Supabase Auth</div>
+          {platformAdmin ? <div className="flex items-center gap-3 py-4 text-sm text-blue-200"><MdAdminPanelSettings className="text-blue-300" size={20} /> Administrador global de Bonōa</div> : null}
         </div>
 
         <div className="mt-7 flex flex-wrap gap-3">
+          {platformAdmin ? <Link href="/admin" className="inline-flex items-center gap-2 rounded-full border border-blue-400/20 bg-blue-400/10 px-4 py-2.5 text-xs font-black text-blue-200 transition hover:bg-blue-400/15"><MdAdminPanelSettings size={18} /> Administración</Link> : null}
           <Link href="/business" className="inline-flex items-center gap-2 rounded-full border border-orange-400/20 bg-orange-400/10 px-4 py-2.5 text-xs font-bold text-orange-200 transition hover:bg-orange-400/15"><MdStorefront size={18} /> Bonoa Business</Link>
           <Link href="/tramassso" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-zinc-300 transition hover:bg-white/10"><MdOpenInNew size={17} /> Volver a Tramassso</Link>
           <Link href="/reset-password" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-zinc-300 transition hover:bg-white/10"><MdLockReset size={18} /> Cambiar contraseña</Link>
