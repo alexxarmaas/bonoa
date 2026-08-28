@@ -98,7 +98,7 @@ try {
   }
 
   const permissions = response.headers.get("permissions-policy") ?? "";
-  if (!permissions.includes("camera=(self)") || !permissions.includes("microphone=()")) {
+  if (!permissions.includes("camera=(self)") || !permissions.includes("microphone=()") || !permissions.includes("geolocation=(self)")) {
     console.error(`FAIL permissions-policy: got ${permissions}`);
     failed = true;
   } else {

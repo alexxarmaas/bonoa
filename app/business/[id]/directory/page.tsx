@@ -7,6 +7,9 @@ import {
   MdArrowBack,
   MdCategory,
   MdCheckCircle,
+  MdLocationOn,
+  MdMap,
+  MdMyLocation,
   MdOpenInNew,
   MdSave,
   MdStorefront,
@@ -29,11 +32,14 @@ function BusinessDirectoryContent() {
   const { id: businessId } = useParams<{ id: string }>();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [locating, setLocating] = useState(false);
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [listed, setListed] = useState(false);
   const [category, setCategory] = useState<DirectoryCategory | "">("");
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -49,6 +55,8 @@ function BusinessDirectoryContent() {
         setSlug(settings.slug);
         setListed(settings.directory_listed);
         setCategory(settings.directory_category ?? "");
+        setLatitude(settings.directory_latitude?.toString() ?? "");
+        setLongitude(settings.directory_longitude?.toString() ?? "");
       })
       .catch((cause) => {
         if (active) setError(friendlyError(cause, "No hemos podido cargar la configuración del directorio."));
@@ -59,9 +67,39 @@ function BusinessDirectoryContent() {
     return () => { active = false; };
   }, [businessId, user]);
 
+  const useCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setError("Este dispositivo no permite obtener la ubicación.");
+      return;
+    }
+    setLocating(true);
+    setError(null);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLatitude(position.coords.latitude.toFixed(6));
+        setLongitude(position.coords.longitude.toFixed(6));
+        setLocating(false);
+        setSuccess("Ubicación capturada. Guarda los cambios para utilizarla en el directorio.");
+      },
+      () => {
+        setLocating(false);
+        setError("No hemos podido obtener la ubicación. Revisa el permiso del navegador o introduce las coordenadas manualmente.");
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+  };
+
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
     if (!allowed) return;
+    const hasCoordinates = Boolean(latitude.trim() || longitude.trim());
+    const parsedLatitude = latitude.trim() ? Number(latitude) : null;
+    const parsedLongitude = longitude.trim() ? Number(longitude) : null;
+    if (hasCoordinates && (parsedLatitude === null || parsedLongitude === null || !Number.isFinite(parsedLatitude) || !Number.isFinite(parsedLongitude))) {
+      setError("Introduce una latitud y longitud válidas o deja ambos campos vacíos.");
+      return;
+    }
+
     setSaving(true);
     setError(null);
     setSuccess(null);
@@ -69,6 +107,8 @@ function BusinessDirectoryContent() {
       await updateBusinessDirectorySettings(businessId, {
         listed,
         category: category || null,
+        latitude: parsedLatitude,
+        longitude: parsedLongitude,
       });
       setSuccess(listed ? "Tu negocio ya puede aparecer en el directorio de Bonōa." : "Tu negocio ha quedado oculto del directorio.");
     } catch (cause) {
@@ -91,6 +131,9 @@ function BusinessDirectoryContent() {
     );
   }
 
+  const hasMapLocation = Boolean(latitude && longitude && Number.isFinite(Number(latitude)) && Number.isFinite(Number(longitude)));
+  const mapUrl = hasMapLocation ? `https://www.openstreetmap.org/?mlat=${encodeURIComponent(latitude)}&mlon=${encodeURIComponent(longitude)}#map=17/${encodeURIComponent(latitude)}/${encodeURIComponent(longitude)}` : null;
+
   return (
     <main className="bonoa-shell pb-24">
       <header className="flex flex-wrap items-center justify-between gap-4">
@@ -110,7 +153,7 @@ function BusinessDirectoryContent() {
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#06b6d4]">Captación + fidelización</p>
             <h2 className="mt-3 max-w-2xl text-3xl font-black tracking-[-0.04em] text-[#0f172a]">Haz que nuevos clientes descubran {name || "tu negocio"}.</h2>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-[#64748b]">Al publicar tu negocio, los usuarios de Bonōa podrán encontrarlo por nombre y categoría, ver tus bonos públicos y entrar en tu escaparate. Puedes ocultarlo de nuevo cuando quieras.</p>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-[#64748b]">Publica tu ficha y, si añades la ubicación, Bonōa podrá mostrar la distancia al cliente y situarte en el mapa cuando este decida compartir su posición.</p>
           </div>
           <div className={`rounded-[1.6rem] border p-5 ${listed ? "border-emerald-200 bg-emerald-50" : "border-[#dbe7f5] bg-[#f8fbff]"}`}>
             <div className="flex items-center gap-3">
@@ -140,19 +183,29 @@ function BusinessDirectoryContent() {
 
         <label className="mt-5 block text-xs font-bold text-[#475569]">
           <span className="flex items-center gap-2"><MdCategory size={18} /> Categoría</span>
-          <select
-            value={category}
-            onChange={(event) => setCategory(event.target.value as DirectoryCategory | "")}
-            className="mt-2 w-full rounded-2xl border border-[#dbe7f5] bg-white px-4 py-3.5 text-sm font-semibold text-[#0f172a] outline-none focus:border-[#93c5fd]"
-          >
+          <select value={category} onChange={(event) => setCategory(event.target.value as DirectoryCategory | "")} className="mt-2 w-full rounded-2xl border border-[#dbe7f5] bg-white px-4 py-3.5 text-sm font-semibold text-[#0f172a] outline-none focus:border-[#93c5fd]">
             <option value="">Selecciona una categoría</option>
             {DIRECTORY_CATEGORIES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
-          <span className="mt-2 block text-[10px] font-normal leading-5 text-[#94a3b8]">La categoría ayuda a que los clientes te encuentren mediante los filtros del directorio.</span>
         </label>
 
+        <section className="mt-5 rounded-[1.5rem] border border-[#dbe7f5] bg-[#f8fbff] p-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div><p className="flex items-center gap-2 text-sm font-black text-[#0f172a]"><MdLocationOn className="text-[#2563eb]" size={19} /> Ubicación para proximidad</p><p className="mt-2 max-w-2xl text-xs leading-5 text-[#64748b]">Es opcional. Permite calcular “Cerca de ti” sin publicar la posición del cliente; solo se guardan las coordenadas del negocio.</p></div>
+            <button type="button" onClick={useCurrentLocation} disabled={locating} className="inline-flex items-center gap-2 rounded-full border border-[#bfdbfe] bg-white px-4 py-2.5 text-xs font-black text-[#2563eb] disabled:opacity-50"><MdMyLocation size={17} /> {locating ? "Localizando…" : "Usar mi ubicación"}</button>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <label className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#64748b]">Latitud<input type="number" step="any" min="-90" max="90" value={latitude} onChange={(event) => setLatitude(event.target.value)} placeholder="28.123456" className="mt-2 w-full rounded-2xl border border-[#dbe7f5] bg-white px-4 py-3 text-sm font-semibold text-[#0f172a] outline-none focus:border-[#93c5fd]" /></label>
+            <label className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#64748b]">Longitud<input type="number" step="any" min="-180" max="180" value={longitude} onChange={(event) => setLongitude(event.target.value)} placeholder="-15.123456" className="mt-2 w-full rounded-2xl border border-[#dbe7f5] bg-white px-4 py-3 text-sm font-semibold text-[#0f172a] outline-none focus:border-[#93c5fd]" /></label>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {mapUrl ? <a href={mapUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full border border-[#dbe7f5] bg-white px-4 py-2 text-[10px] font-black text-[#475569]"><MdMap size={15} /> Comprobar en mapa</a> : null}
+            {hasMapLocation ? <button type="button" onClick={() => { setLatitude(""); setLongitude(""); }} className="rounded-full border border-[#dbe7f5] bg-white px-4 py-2 text-[10px] font-black text-[#94a3b8]">Quitar ubicación</button> : null}
+          </div>
+        </section>
+
         <div className="mt-7 flex flex-wrap items-center justify-between gap-4 border-t border-[#e8eef7] pt-6">
-          <p className="max-w-xl text-[10px] leading-5 text-[#94a3b8]">Al activar esta opción aceptas que la ficha comercial, ubicación y bonos marcados como públicos puedan mostrarse a usuarios de Bonōa.</p>
+          <p className="max-w-xl text-[10px] leading-5 text-[#94a3b8]">Al activar esta opción aceptas que la ficha comercial, la ubicación del negocio y los bonos marcados como públicos puedan mostrarse a usuarios de Bonōa.</p>
           <button disabled={saving || (listed && !category)} className="brand-gradient inline-flex items-center gap-2 rounded-full px-6 py-3 text-xs font-black text-white shadow-[0_14px_34px_rgba(37,99,235,.18)] disabled:opacity-40"><MdSave size={18} /> {saving ? "Guardando…" : "Guardar directorio"}</button>
         </div>
       </form>
