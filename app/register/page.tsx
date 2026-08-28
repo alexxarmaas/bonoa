@@ -6,10 +6,7 @@ import { useRouter } from "next/navigation";
 import { MdArrowForward, MdCheckCircle } from "react-icons/md";
 import { useAuth } from "@/components/auth/AuthProvider";
 import BonoaLogo from "@/components/brand/BonoaLogo";
-import { friendlyError } from "@/lib/errors";
-import { supabase } from "@/lib/supabase/client";
 
-const LEGAL_VERSION = "2026-08-27";
 const MIN_PASSWORD_LENGTH = 8;
 
 function safeNextPath() {
@@ -17,6 +14,11 @@ function safeNextPath() {
   const value = new URLSearchParams(window.location.search).get("next");
   return value && value.startsWith("/") && !value.startsWith("//") ? value : "/wallet";
 }
+
+type RegisterResponse = {
+  ok?: boolean;
+  message?: string;
+};
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -52,39 +54,39 @@ export default function RegisterPage() {
       return;
     }
 
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!supabaseUrl) {
+      setError("El registro no está disponible temporalmente.");
+      return;
+    }
+
     setLoading(true);
     const next = safeNextPath();
-    const loginDestination = next === "/wallet" ? "/login?confirmed=1" : `/login?confirmed=1&next=${encodeURIComponent(next)}`;
-    const emailRedirectTo = `${window.location.origin}${loginDestination}`;
-    const acceptedAt = new Date().toISOString();
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      options: {
-        data: {
-          display_name: displayName,
-          legal_terms_version: LEGAL_VERSION,
-          legal_terms_accepted_at: acceptedAt,
-          privacy_notice_version: LEGAL_VERSION,
-          privacy_notice_acknowledged_at: acceptedAt,
-        },
-        emailRedirectTo,
-      },
-    });
 
-    setLoading(false);
+    try {
+      const response = await fetch(`${supabaseUrl}/functions/v1/register-with-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: displayName,
+          email: email.trim(),
+          password,
+          next,
+        }),
+      });
 
-    if (signUpError) {
-      setError(friendlyError(signUpError, "No hemos podido crear tu cuenta."));
-      return;
+      const result = await response.json().catch(() => ({})) as RegisterResponse;
+      if (!response.ok) {
+        setError(result.message || "No hemos podido crear tu cuenta.");
+        return;
+      }
+
+      setNotice(result.message || "Cuenta creada. Revisa tu correo para confirmar el acceso.");
+    } catch {
+      setError("No hemos podido conectar con el servicio de registro. Inténtalo de nuevo.");
+    } finally {
+      setLoading(false);
     }
-
-    if (data.session) {
-      router.replace(next);
-      return;
-    }
-
-    setNotice("Cuenta creada. Revisa tu correo para confirmar el acceso; al volver continuarás donde estabas.");
   };
 
   const goToLogin = () => {
@@ -116,7 +118,7 @@ export default function RegisterPage() {
             </label>
             <label className="block">
               <span className="mb-2 block text-xs font-semibold text-[#475569]">Contraseña</span>
-              <input required minLength={MIN_PASSWORD_LENGTH} type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded-2xl border border-[#dbe7f5] bg-white px-4 py-3.5 text-sm text-[#0f172a] outline-none transition placeholder:text-[#94a3b8] focus:border-[#2563eb] focus:ring-4 focus:ring-[#2563eb]/10" placeholder={`Mínimo ${MIN_PASSWORD_LENGTH} caracteres`} />
+              <input required minLength={MIN_PASSWORD_LENGTH} maxLength={128} type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded-2xl border border-[#dbe7f5] bg-white px-4 py-3.5 text-sm text-[#0f172a] outline-none transition placeholder:text-[#94a3b8] focus:border-[#2563eb] focus:ring-4 focus:ring-[#2563eb]/10" placeholder={`Mínimo ${MIN_PASSWORD_LENGTH} caracteres`} />
             </label>
 
             <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-[#dbe7f5] bg-[#f8fbff] p-4">
