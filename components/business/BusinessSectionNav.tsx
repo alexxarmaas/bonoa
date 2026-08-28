@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
-import { MdAssessment, MdCampaign, MdDashboard, MdGroups, MdHistory, MdPeople, MdPointOfSale, MdRocketLaunch, MdSecurity, MdSettings, MdStyle, MdViewList, MdWorkspacePremium, MdPersonAddAlt1 } from "react-icons/md";
+import { MdAssessment, MdCampaign, MdDashboard, MdGroups, MdHistory, MdPeople, MdPointOfSale, MdRocketLaunch, MdSecurity, MdSettings, MdStorefront, MdStyle, MdViewList, MdWorkspacePremium, MdPersonAddAlt1 } from "react-icons/md";
 
 const items = [
   { suffix: "", label: "Resumen", icon: MdDashboard },
@@ -18,6 +18,7 @@ const items = [
   { suffix: "/passes", label: "Bonos", icon: MdStyle },
   { suffix: "/activity", label: "Actividad", icon: MdHistory },
   { suffix: "/team", label: "Equipo", icon: MdPeople },
+  { suffix: "/directory", label: "Directorio", icon: MdStorefront },
   { suffix: "/settings", label: "Configuración", icon: MdSettings },
 ];
 
