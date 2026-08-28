@@ -74,6 +74,21 @@ jobs:
           SMOKE_BASE_URL: http://127.0.0.1:3000
         run: npm run pilot:contract
 
+      - name: Install browser E2E runtime
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          ./node_modules/.bin/playwright install --with-deps chromium
+
+      - name: Browser E2E
+        env:
+          E2E_BASE_URL: http://127.0.0.1:3000
+          E2E_BUSINESS_EMAIL: ${{ secrets.E2E_BUSINESS_EMAIL }}
+          E2E_BUSINESS_PASSWORD: ${{ secrets.E2E_BUSINESS_PASSWORD }}
+          E2E_BUSINESS_ID: ${{ secrets.E2E_BUSINESS_ID }}
+          E2E_CLIENT_EMAIL: ${{ secrets.E2E_CLIENT_EMAIL }}
+          E2E_CLIENT_PASSWORD: ${{ secrets.E2E_CLIENT_PASSWORD }}
+        run: node scripts/browser-e2e.mjs
+
       - name: Stop app
         if: always()
         run: |

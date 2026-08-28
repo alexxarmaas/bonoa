@@ -37,6 +37,8 @@ export function friendlyError(cause: unknown, fallback = "Ha ocurrido un error. 
     ["wallet_not_found", "No encontramos la wallet asociada a esta cuenta."],
     ["wallet not found", "No encontramos la wallet asociada a esta cuenta."],
     ["active product not found", "Ese tipo de bono ya no está disponible."],
+    ["business onboarding requirements incomplete", "Completa todos los campos obligatorios y la fidelización inicial antes de finalizar el alta."],
+    ["business onboarding incomplete", "Completa el alta del negocio antes de registrar clientes, compras o consumos."],
     ["business is not active", "Este negocio no está activo en Bonoa."],
     ["not authorized for this business", "No tienes permisos para realizar esta acción en el negocio."],
     ["not_authorized", "No tienes permisos para realizar esta acción en el negocio."],
