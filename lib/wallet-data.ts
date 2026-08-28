@@ -149,15 +149,16 @@ export async function getWalletHistory(userId: string): Promise<WalletRedemption
 
   if (error) throw error;
 
-  return (data ?? []).map((redemption) => {
+  return (data ?? []).flatMap((redemption): WalletRedemption[] => {
+    if (!redemption.pass_id) return [];
     const pass = passMap.get(redemption.pass_id);
-    return {
+    return [{
       id: redemption.id,
       passId: redemption.pass_id,
       businessName: pass?.businessName ?? "Establecimiento",
       productName: pass?.productName ?? "Bono",
       units: Number(redemption.units),
       createdAt: redemption.created_at,
-    };
+    }];
   });
 }
