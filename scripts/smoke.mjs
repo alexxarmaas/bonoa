@@ -10,6 +10,7 @@ const checks = [
   { path: "/terminos", status: 200 },
   { path: "/opengraph-image", status: 200 },
   { path: "/demo/business", status: 200 },
+  { path: "/negocios", status: 200 },
   { path: "/promo/smoke-test-code", status: 200 },
   { path: "/sw.js", status: 200 },
   { path: "/manifest.webmanifest", status: 200, json: (value) => value?.name === "Bonoa" && value?.display === "standalone" && value?.start_url === "/wallet" },

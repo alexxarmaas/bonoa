@@ -89,6 +89,7 @@ function WalletContent() {
         <Link href="/" aria-label="Ir a la portada"><BonoaLogo /></Link>
         <nav className="hidden items-center gap-6 text-xs font-semibold text-[#64748b] md:flex">
           <Link href="/wallet" className="font-black text-[#2563eb]">Wallet</Link>
+          <Link href="/negocios" className="transition hover:text-[#0f172a]">Negocios</Link>
           <Link href="/qr" className="transition hover:text-[#0f172a]">Mi QR</Link>
           <Link href="/history" className="transition hover:text-[#0f172a]">Historial</Link>
           <Link href="/notifications" className="relative transition hover:text-[#0f172a]">Avisos{unreadNotifications ? <span className="absolute -right-3 -top-2 grid h-4 min-w-4 place-items-center rounded-full bg-[#2563eb] px-1 text-[8px] font-black text-white">{unreadNotifications}</span> : null}</Link>
