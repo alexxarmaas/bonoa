@@ -69,6 +69,11 @@ jobs:
           SMOKE_BASE_URL: http://127.0.0.1:3000
         run: npm run smoke
 
+      - name: Pilot contract tests
+        env:
+          SMOKE_BASE_URL: http://127.0.0.1:3000
+        run: npm run pilot:contract
+
       - name: Stop app
         if: always()
         run: |
