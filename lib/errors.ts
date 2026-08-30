@@ -16,6 +16,7 @@ export function friendlyError(cause: unknown, fallback = "Ha ocurrido un error. 
     ["email rate limit exceeded", "Se han enviado demasiados correos. Inténtalo de nuevo en unos minutos."],
     ["for security purposes", "Espera unos segundos antes de volver a intentarlo."],
     ["password should be at least", "La contraseña debe tener al menos 6 caracteres."],
+    ["jwt issued at future", "Hay una incidencia temporal de sesión. Recarga la página en unos segundos."],
     ["business name is too short", "El nombre del negocio es demasiado corto."],
     ["invalid business slug", "El identificador del negocio no es válido."],
     ["businesses_slug_key", "Ese identificador de negocio ya está en uso."],
