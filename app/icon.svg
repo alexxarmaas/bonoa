@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bonoa" x1="86" y1="78" x2="424" y2="438" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#06B6D4"/>
+      <stop offset=".42" stop-color="#1688F8"/>
+      <stop offset="1" stop-color="#2563EB"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="#F8FBFF"/>
+  <path d="M104 171c0-47 38-85 85-85h139c53 0 96 43 96 96v161c0 47-38 85-85 85H189c-47 0-85-38-85-85V171Z" fill="url(#bonoa)"/>
+  <path d="m135 135 202-61c31-9 57 10 63 40l9 47-227 49-47-75Z" fill="url(#bonoa)"/>
+  <rect x="226" y="187" width="188" height="158" rx="48" fill="#fff"/>
+  <rect x="256" y="219" width="48" height="48" rx="7" fill="#2563EB"/>
+  <rect x="331" y="219" width="48" height="48" rx="7" fill="#2563EB"/>
+  <rect x="256" y="294" width="48" height="48" rx="7" fill="#2563EB"/>
+  <rect x="331" y="294" width="20" height="20" rx="4" fill="#2563EB"/>
+  <rect x="359" y="322" width="20" height="20" rx="4" fill="#2563EB"/>
+  <rect x="359" y="294" width="20" height="20" rx="4" fill="#2563EB"/>
+  <rect x="331" y="322" width="20" height="20" rx="4" fill="#2563EB"/>
+</svg>
