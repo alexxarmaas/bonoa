@@ -68,16 +68,18 @@ export default function MembershipCard({ membership, rules }: { membership: Wall
   const accent = /^#[0-9a-fA-F]{6}$/.test(membership.business_accent_color || "") ? membership.business_accent_color : "#2563eb";
   const clubName = membership.club_name || `Club ${membership.business_name}`;
   const badge = membership.membership_badge_label || membershipSegmentLabel(membership.segment).toUpperCase();
+  const coverUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/business-assets/${membership.business_id}/club-cover` : null;
   const primaryRule = rules.find((rule) => !rule.completed) ?? rules[0];
   const percent = primaryRule ? Math.min(100, Math.round((Math.max(0, primaryRule.progress_value) / Math.max(1, primaryRule.threshold_value)) * 100)) : 0;
 
   return (
     <article className="group overflow-hidden rounded-[2rem] border border-[#dbe7f5] bg-white shadow-[0_22px_55px_rgba(15,23,42,.1)] transition-shadow hover:shadow-[0_28px_70px_rgba(15,23,42,.16)]">
       <div className="relative isolate flex min-h-[255px] flex-col justify-between overflow-hidden rounded-[1.7rem] p-6 text-white sm:min-h-[285px] sm:p-7" style={{ background: `linear-gradient(125deg, #101827 0%, ${accent} 110%)` }}>
+        {coverUrl ? <img src={coverUrl} alt="" aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 h-full w-full object-cover opacity-65" onError={(event) => { event.currentTarget.style.display = "none"; }} /> : null}
         {membership.business_logo_url ? (
           <img src={membership.business_logo_url} alt="" aria-hidden="true" className="pointer-events-none absolute -right-12 -top-12 -z-10 h-[125%] w-[85%] rotate-[-12deg] object-contain opacity-20 blur-[3px]" />
         ) : null}
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-t from-black/55 via-transparent to-white/10" />
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-t from-black/80 via-black/25 to-black/40" />
         <div className="pointer-events-none absolute -right-20 bottom-[-7rem] -z-10 h-72 w-72 rounded-full bg-white/15 blur-3xl" />
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
