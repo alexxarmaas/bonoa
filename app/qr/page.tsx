@@ -6,6 +6,7 @@ import { MdArrowBack, MdContentCopy, MdLockOutline, MdQrCode2, MdRefresh } from 
 import AuthGuard from "@/components/auth/AuthGuard";
 import { useAuth } from "@/components/auth/AuthProvider";
 import WalletQr from "@/components/WalletQr";
+import ClubJoinRequests from "@/components/ClubJoinRequests";
 import { friendlyError } from "@/lib/errors";
 import { getWalletIdentity, rotateWalletQr, type WalletIdentity } from "@/lib/wallet-data";
 
@@ -83,7 +84,9 @@ function QrContent() {
         {profile?.display_name ? <p className="mt-2 text-xs text-zinc-600">{profile.display_name}</p> : null}
         {payload ? <button type="button" onClick={() => void copyCode()} className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-[11px] font-bold text-zinc-300 hover:bg-white/8 hover:text-white"><MdContentCopy size={16} /> {copied ? "Código copiado" : "Copiar código"}</button> : null}
 
-        {success ? <p className="mt-5 w-full max-w-sm rounded-2xl border border-emerald-400/15 bg-emerald-400/5 px-4 py-3 text-xs text-emerald-200">{success}</p> : null}
+        <div className="mt-6 w-full text-left"><ClubJoinRequests userId={user?.id} dark /></div>
+
+        {success ? <p className="mt-5 w-full max-w-sm rounded-2xl border border-emerald-400/15 bg-emerald-400/5 px-4 py-3 text-xs text-emerald-200">{success}</p> : null>
         {error && wallet ? <p className="mt-5 w-full max-w-sm rounded-2xl border border-red-400/15 bg-red-400/5 px-4 py-3 text-xs text-red-200">{error}</p> : null}
 
         <div className="mt-7 flex max-w-sm items-start gap-3 rounded-2xl border border-white/8 bg-white/[0.025] p-4 text-left">
