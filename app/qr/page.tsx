@@ -86,7 +86,7 @@ function QrContent() {
 
         <div className="mt-6 w-full text-left"><ClubJoinRequests userId={user?.id} dark /></div>
 
-        {success ? <p className="mt-5 w-full max-w-sm rounded-2xl border border-emerald-400/15 bg-emerald-400/5 px-4 py-3 text-xs text-emerald-200">{success}</p> : null>}
+        {success ? <p className="mt-5 w-full max-w-sm rounded-2xl border border-emerald-400/15 bg-emerald-400/5 px-4 py-3 text-xs text-emerald-200">{success}</p> : null}
         {error && wallet ? <p className="mt-5 w-full max-w-sm rounded-2xl border border-red-400/15 bg-red-400/5 px-4 py-3 text-xs text-red-200">{error}</p> : null}
 
         <div className="mt-7 flex max-w-sm items-start gap-3 rounded-2xl border border-white/8 bg-white/[0.025] p-4 text-left">
