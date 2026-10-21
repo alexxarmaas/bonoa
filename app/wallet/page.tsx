@@ -7,6 +7,7 @@ import AuthGuard from "@/components/auth/AuthGuard";
 import { useAuth } from "@/components/auth/AuthProvider";
 import BonoaLogo from "@/components/brand/BonoaLogo";
 import MembershipCard from "@/components/MembershipCard";
+import ClubJoinRequests from "@/components/ClubJoinRequests";
 import PassCard from "@/components/PassCard";
 import { friendlyError } from "@/lib/errors";
 import {
@@ -126,6 +127,8 @@ function WalletContent() {
 
       {error ? <div className="mt-6 rounded-[1.5rem] border border-red-200 bg-red-50 p-5 text-sm text-red-700">{error}</div> : null}
 
+      <div className="mt-6"><ClubJoinRequests userId={user?.id} onApproved={() => { void loadWallet(true); }} /></div>
+
       <section id="carnets" className="mt-10">
         <div className="mb-5 flex items-end justify-between gap-4">
           <div>
@@ -136,7 +139,7 @@ function WalletContent() {
           <button type="button" onClick={() => void refreshWallet()} disabled={loading || refreshing} className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#dbe7f5] bg-white px-3.5 py-2 text-[11px] font-bold text-[#475569] shadow-sm transition hover:border-[#bfdbfe] hover:text-[#1d4ed8] disabled:opacity-40"><MdRefresh size={16} className={refreshing ? "animate-spin" : ""} /> {refreshing ? "Actualizando…" : "Actualizar"}</button>
         </div>
 
-        {loading ? <div className="grid gap-4 lg:grid-cols-2">{[0, 1].map((item) => <div key={item} className="bonoa-card h-80 animate-pulse rounded-[1.8rem]" />)}</div> : memberships.length ? <div className="grid gap-4 lg:grid-cols-2">{memberships.map((membership) => <MembershipCard key={membership.membership_id} membership={membership} rules={rulesByBusiness.get(membership.business_id) ?? []} />)}</div> : <div className="rounded-[1.7rem] border border-dashed border-[#cbd5e1] bg-white/60 p-8 text-center"><MdWallet className="mx-auto text-[#94a3b8]" size={30} /><p className="mt-3 text-sm font-black text-[#0f172a]">Todavía no tienes carnets</p><p className="mx-auto mt-2 max-w-md text-xs leading-5 text-[#64748b]">Se crea automáticamente el primero cuando un comercio registra una compra, una visita o te asigna un bono. No tienes que solicitarlo.</p></div>}
+        {loading ? <div className="grid gap-4 lg:grid-cols-2">{[0, 1].map((item) => <div key={item} className="bonoa-card h-80 animate-pulse rounded-[1.8rem]" />)}</div> : memberships.length ? <div className="grid gap-4 lg:grid-cols-2">{memberships.map((membership) => <MembershipCard key={membership.membership_id} membership={membership} rules={rulesByBusiness.get(membership.business_id) ?? []} />)}</div> : <div className="rounded-[1.7rem] border border-dashed border-[#cbd5e1] bg-white/60 p-8 text-center"><MdWallet className="mx-auto text-[#94a3b8]" size={30} /><p className="mt-3 text-sm font-black text-[#0f172a]">Todavía no tienes carnets</p><p className="mx-auto mt-2 max-w-md text-xs leading-5 text-[#64748b]">Cuando un comercio escanee tu QR, podrás aceptar su invitación aquí. También puedes unirte directamente desde la ficha del negocio.</p></div>}
       </section>
 
       <section id="bonos" className="mt-12">
