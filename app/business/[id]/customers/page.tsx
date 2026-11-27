@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { MdArrowBack, MdArrowForward, MdCampaign, MdGroups, MdLocalActivity, MdPersonAddAlt1, MdRefresh, MdShoppingBag, MdStar, MdWarningAmber } from "react-icons/md";
+import { MdArrowBack, MdArrowForward, MdCampaign, MdFileDownload, MdGroups, MdLocalActivity, MdPersonAddAlt1, MdRefresh, MdShoppingBag, MdStar, MdWarningAmber } from "react-icons/md";
 import AuthGuard from "@/components/auth/AuthGuard";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getBusinessAccess } from "@/lib/business-data";
 import { friendlyError } from "@/lib/errors";
+import { downloadCsv, safeFilename } from "@/lib/csv";
 import { formatMoney } from "@/lib/pilot-data";
 import { getBusinessCustomers, segmentLabel, type BusinessCustomer, type CustomerSegment } from "@/lib/loyalty-growth";
 
@@ -26,6 +27,7 @@ function CustomersContent() {
   const segmentParam = searchParams.get("segment");
   const initialFilter: "all" | CustomerSegment = ["new", "active", "loyal", "at_risk"].includes(segmentParam ?? "") ? segmentParam as CustomerSegment : "all";
   const [businessName, setBusinessName] = useState("");
+  const [canExport, setCanExport] = useState(false);
   const [customers, setCustomers] = useState<BusinessCustomer[]>([]);
   const [filter, setFilter] = useState<"all" | CustomerSegment>(initialFilter);
   const [query, setQuery] = useState("");
@@ -40,8 +42,11 @@ function CustomersContent() {
       const [access, rows] = await Promise.all([getBusinessAccess(businessId, user.id), getBusinessCustomers(businessId)]);
       if (!access) throw new Error("No tienes acceso a este negocio.");
       setBusinessName(access.business.name);
+      setCanExport(access.role === "owner" || access.role === "manager");
       setCustomers(rows);
     } catch (cause) {
+      setCanExport(false);
+      setCustomers([]);
       setError(friendlyError(cause, "No hemos podido analizar tus clientes."));
     } finally { setLoading(false); }
   };
@@ -70,6 +75,20 @@ function CustomersContent() {
     return segmentMatches && queryMatches;
   }), [customers, filter, query]);
 
+  const exportCustomers = () => {
+    if (!canExport || loading || error || !visible.length) return;
+    downloadCsv(
+      `${safeFilename(businessName)}-clientes-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Cliente", "Segmento", "Compras", "Visitas (incluye compras)", "Gasto identificado EUR", "Premios", "Consumos", "Bonos activos", "Primera actividad", "Última actividad"],
+      visible.map(customer => [
+        customer.customer_code, segmentLabel(customer.segment), customer.purchases, customer.visits,
+        (customer.spend_cents / 100).toFixed(2).replace(".", ","), customer.rewards_earned,
+        customer.redemptions, customer.active_passes, customer.first_seen, customer.last_activity,
+      ]),
+      ";",
+    );
+  };
+
   const filters: Array<{ value: "all" | CustomerSegment; label: string }> = [
     { value: "all", label: `Todos · ${customers.length}` },
     { value: "loyal", label: `Fieles · ${summary.loyal}` },
@@ -82,7 +101,7 @@ function CustomersContent() {
     <main className="bonoa-shell min-h-screen pb-24">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3"><Link href={`/business/${businessId}`} className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/5 text-zinc-300" aria-label="Volver"><MdArrowBack size={20} /></Link><div><p className="text-[10px] font-bold uppercase tracking-[0.24em] text-orange-300">{businessName || "Bonoa Business"}</p><h1 className="mt-1 text-2xl font-black text-white">Clientes</h1></div></div>
-        <div className="flex gap-2"><Link href={`/business/${businessId}/engage`} className="inline-flex items-center gap-2 rounded-full border border-orange-400/20 bg-orange-400/10 px-4 py-2.5 text-xs font-bold text-orange-200"><MdLocalActivity size={17} /> Registrar actividad</Link><button type="button" onClick={() => void load()} disabled={loading} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-zinc-300 disabled:opacity-40"><MdRefresh size={17} /> Actualizar</button></div>
+        <div className="flex flex-wrap gap-2">{canExport ? <button type="button" onClick={exportCustomers} disabled={loading || Boolean(error) || !visible.length} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-zinc-300 disabled:opacity-40"><MdFileDownload size={17} /> Exportar filtro CSV</button> : null}<Link href={`/business/${businessId}/engage`} className="inline-flex items-center gap-2 rounded-full border border-orange-400/20 bg-orange-400/10 px-4 py-2.5 text-xs font-bold text-orange-200"><MdLocalActivity size={17} /> Registrar actividad</Link><button type="button" onClick={() => void load()} disabled={loading} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-zinc-300 disabled:opacity-40"><MdRefresh size={17} /> Actualizar</button></div>
       </header>
 
       <section className="mt-6 rounded-[2rem] border border-orange-400/12 bg-orange-400/[0.04] p-5 sm:p-6">
