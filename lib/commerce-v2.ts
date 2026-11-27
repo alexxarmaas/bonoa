@@ -185,3 +185,12 @@ export async function getBusinessRiskEvents(businessId: string, limit = 50): Pro
   if (error) throw error;
   return data ?? [];
 }
+
+export async function correctPurchaseAmount(input: { businessId: string; eventId: string; expectedAmountCents: number; nextAmountCents: number; reason: string }) {
+  const { data, error } = await rpc<{ event_id: string; previous_amount_cents: number; amount_cents: number }>("correct_purchase_amount", {
+    target_business_id: input.businessId, target_event_id: input.eventId,
+    expected_amount_cents: input.expectedAmountCents, next_amount_cents: input.nextAmountCents,
+    correction_reason: input.reason.trim(),
+  });
+  return unwrap(data, error, "No se pudo rectificar la compra.");
+}
