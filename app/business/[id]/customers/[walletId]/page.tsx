@@ -3,11 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { MdArrowBack, MdAutoAwesome, MdCampaign, MdFileDownload, MdHistory, MdLocalActivity, MdRedeem, MdShoppingBag, MdStar, MdStyle } from "react-icons/md";
+import { MdArrowBack, MdAutoAwesome, MdCampaign, MdFileDownload, MdEdit, MdHistory, MdLocalActivity, MdRedeem, MdShoppingBag, MdStar, MdStyle } from "react-icons/md";
 import AuthGuard from "@/components/auth/AuthGuard";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getBusinessAccess } from "@/lib/business-data";
-import { getBusinessCustomerDetail, getBusinessCustomerTimeline, type CustomerDetail, type CustomerTimelineEvent } from "@/lib/commerce-v2";
+import { correctPurchaseAmount, getBusinessCustomerDetail, getBusinessCustomerTimeline, type CustomerDetail, type CustomerTimelineEvent } from "@/lib/commerce-v2";
 import { friendlyError } from "@/lib/errors";
 import { downloadCsv, safeFilename } from "@/lib/csv";
 import { formatMoney } from "@/lib/pilot-data";
@@ -29,6 +29,11 @@ function CustomerDetailContent() {
   const [canExport, setCanExport] = useState(false);
   const [customer, setCustomer] = useState<CustomerDetail | null>(null);
   const [timeline, setTimeline] = useState<CustomerTimelineEvent[]>([]);
+  const [editing, setEditing] = useState<CustomerTimelineEvent | null>(null);
+  const [nextAmount, setNextAmount] = useState("");
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,6 +54,35 @@ function CustomerDetailContent() {
     return () => { active = false; };
   }, [businessId, walletId, user]);
 
+  const saveCorrection = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editing || !canExport || saving) return;
+    if (!/^\d{1,7}([.,]\d{1,2})?$/.test(nextAmount.trim())) {
+      setError("Introduce un importe válido con un máximo de dos decimales.");
+      return;
+    }
+    const cents = Math.round(Number(nextAmount.replace(",", ".")) * 100);
+    if (cents < 0 || cents >= editing.amount_cents || reason.trim().length < 5) {
+      setError("Introduce un importe inferior al original y un motivo de al menos cinco caracteres.");
+      return;
+    }
+    setSaving(true); setError(null); setNotice(null);
+    try {
+      await correctPurchaseAmount({ businessId, eventId: editing.event_id, expectedAmountCents: editing.amount_cents, nextAmountCents: cents, reason });
+      setEditing(null);
+      setNotice("Compra rectificada. El nuevo importe se ha registrado y el cliente ha recibido un aviso.");
+      try {
+        const [detail, events] = await Promise.all([getBusinessCustomerDetail(businessId, walletId), getBusinessCustomerTimeline(businessId, walletId)]);
+        setCustomer(detail); setTimeline(events);
+      } catch {
+        setNotice("Compra rectificada. Recarga la ficha para consultar el progreso actualizado.");
+        setTimeline([]);
+      }
+    } catch (cause) {
+      setError(friendlyError(cause, "No se pudo confirmar la rectificación. Actualiza la ficha antes de reintentar."));
+    } finally { setSaving(false); }
+  };
+
   const activePasses = useMemo(() => customer?.passes.filter((pass) => pass.status === "active" && Number(pass.remaining_units) > 0) ?? [], [customer]);
 
   if (loading) return <main className="bonoa-shell"><div className="h-[38rem] animate-pulse rounded-[2rem] border border-white/8 bg-white/[0.03]" /></main>;
@@ -62,6 +96,15 @@ function CustomerDetailContent() {
       </header>
 
       {error ? <div className="mt-5 rounded-2xl border border-red-400/15 bg-red-400/5 p-4 text-xs text-red-200">{error}</div> : null}
+
+      {notice ? <p role="status" className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-4 text-xs text-emerald-200">{notice}</p> : null}
+      {editing ? <form onSubmit={saveCorrection} className="mt-5 bonoa-card rounded-[1.6rem] p-5 space-y-3">
+        <h2 className="text-sm font-black text-white">Rectificar compra {editing.reference_code}</h2>
+        <p className="text-xs text-zinc-400">Importe anterior: {formatMoney(editing.amount_cents)}. Solo se permite reducirlo. La compra seguirá contando como actividad; no es una devolución ni una anulación. Si existen premios o referidos consolidados, se bloqueará la corrección.</p>
+        <label className="block text-xs text-zinc-300">Importe correcto (€)<input required inputMode="decimal" value={nextAmount} onChange={e => setNextAmount(e.target.value)} disabled={saving} className="mt-1 block w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-white" /></label>
+        <label className="block text-xs text-zinc-300">Motivo (sin datos personales)<textarea required minLength={5} maxLength={200} value={reason} onChange={e => setReason(e.target.value)} disabled={saving} className="mt-1 block w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-white" /></label>
+        <div className="flex flex-wrap gap-2"><button type="submit" disabled={saving} className="brand-gradient rounded-full px-4 py-2 text-xs font-black text-white disabled:opacity-40">{saving ? "Rectificando…" : "Confirmar rectificación"}</button><button type="button" disabled={saving} onClick={() => setEditing(null)} className="rounded-full border border-white/10 px-4 py-2 text-xs text-zinc-300">Cancelar</button></div>
+      </form> : null}
 
       <section className="mt-7 grid gap-5 xl:grid-cols-[1.15fr_.85fr]">
         <div className="bonoa-card rounded-[2rem] p-6 sm:p-7">
@@ -87,7 +130,7 @@ function CustomerDetailContent() {
         </aside>
       </section>
 
-      <section className="mt-7 bonoa-card rounded-[2rem] p-6 sm:p-7"><div className="flex items-center gap-2"><MdHistory className="text-zinc-300" /><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Timeline</p><h2 className="mt-1 text-lg font-black text-white">Operaciones y actividad</h2></div></div><div className="mt-5 divide-y divide-white/7">{timeline.length ? timeline.map((event) => <div key={`${event.event_type}:${event.event_id}`} className="flex gap-4 py-4 first:pt-0 last:pb-0"><div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-orange-400" /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-black text-white">{event.title}</p><p className="font-mono text-[9px] text-zinc-700">{event.reference_code}</p></div><p className="mt-1 text-[11px] text-zinc-500">{event.detail}</p><p className="mt-1 text-[9px] text-zinc-700">{new Date(event.occurred_at).toLocaleString("es-ES")}</p></div></div>) : <p className="text-xs text-zinc-600">Todavía no hay operaciones en el timeline.</p>}</div></section>
+      <section className="mt-7 bonoa-card rounded-[2rem] p-6 sm:p-7"><div className="flex items-center gap-2"><MdHistory className="text-zinc-300" /><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Timeline</p><h2 className="mt-1 text-lg font-black text-white">Operaciones y actividad</h2></div></div><div className="mt-5 divide-y divide-white/7">{timeline.length ? timeline.map((event) => <div key={`${event.event_type}:${event.event_id}`} className="flex gap-4 py-4 first:pt-0 last:pb-0"><div className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-orange-400" /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-black text-white">{event.title}</p><p className="font-mono text-[9px] text-zinc-700">{event.reference_code}</p></div><p className="mt-1 text-[11px] text-zinc-500">{event.detail}</p><p className="mt-1 text-[9px] text-zinc-700">{new Date(event.occurred_at).toLocaleString("es-ES")}</p>{canExport && event.event_type === "purchase" && event.amount_cents > 0 ? <button type="button" disabled={saving} onClick={() => { setEditing(event); setNextAmount((event.amount_cents / 100).toFixed(2).replace(".", ",")); setReason(""); setError(null); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="mt-2 inline-flex items-center gap-1 rounded-full border border-white/10 px-3 py-1.5 text-[10px] font-bold text-zinc-300 disabled:opacity-40"><MdEdit size={14} /> Rectificar importe</button> : null}</div></div>) : <p className="text-xs text-zinc-600">Todavía no hay operaciones en el timeline.</p>}</div></section>
     </main>
   );
 }
