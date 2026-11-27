@@ -25,8 +25,9 @@ export default function InstallBonoa() {
     window.addEventListener("beforeinstallprompt", capture);
     window.addEventListener("appinstalled", installedEvent);
     media.addEventListener("change", update);
-    update();
+    const initial = window.setTimeout(update, 0);
     return () => {
+      window.clearTimeout(initial);
       window.removeEventListener("beforeinstallprompt", capture);
       window.removeEventListener("appinstalled", installedEvent);
       media.removeEventListener("change", update);
