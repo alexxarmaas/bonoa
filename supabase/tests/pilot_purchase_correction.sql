@@ -5,6 +5,8 @@ declare
  owner_id uuid := gen_random_uuid();
  client_id uuid := gen_random_uuid();
  other_id uuid := gen_random_uuid();
+ fresh_id uuid := gen_random_uuid();
+ fresh_wallet uuid;
  b uuid := gen_random_uuid();
  other_b uuid := gen_random_uuid();
  w uuid; token uuid; version integer; invitation uuid;
@@ -18,7 +20,8 @@ begin
   insert into auth.users(id,email,raw_user_meta_data)
   values(owner_id,owner_id::text||'@qa.invalid','{"display_name":"QA owner"}'),
         (client_id,client_id::text||'@qa.invalid','{"display_name":"QA client"}'),
-        (other_id,other_id::text||'@qa.invalid','{"display_name":"QA outsider"}');
+        (other_id,other_id::text||'@qa.invalid','{"display_name":"QA outsider"}'),
+        (fresh_id,fresh_id::text||'@qa.invalid','{"display_name":"QA fresh member"}');
   insert into public.businesses(id,name,slug,status,onboarding_completed_at)
   values(b,'QA temporary','qa-'||b::text,'active',now()),
         (other_b,'QA other','qa-'||other_b::text,'active',now());
@@ -27,9 +30,16 @@ begin
   insert into public.loyalty_automation_rules(id,business_id,name,trigger_type,threshold_value,minimum_purchase_cents,reward_product_id,active)
   values(rule,b,'QA qualifying purchase','purchase_count',1,5000,product,true);
   select id,public_token,qr_version into w,token,version from public.wallets where user_id=client_id;
+  select id into fresh_wallet from public.wallets where user_id=fresh_id;
+  perform set_config('request.jwt.claim.sub',fresh_id::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',fresh_id,'role','authenticated')::text,true);
+  execute 'set local role authenticated';
+  perform public.join_public_business('qa-'||b::text);
+  execute 'reset role';
   perform set_config('request.jwt.claim.sub',owner_id::text,true);
   perform set_config('request.jwt.claims',jsonb_build_object('sub',owner_id,'role','authenticated')::text,true);
   execute 'set local role authenticated';
+  if not exists(select 1 from public.business_customer_loyalty_snapshot(b) s where s.wallet_id=fresh_wallet and s.purchases=0 and s.passes_issued=0 and s.first_seen is not null and s.last_activity is not null) then raise exception 'FAIL fresh member missing from radar'; end if;
   begin
    perform public.register_loyalty_event(b,token,version,'purchase',5000,gen_random_uuid());
    raise exception 'FAIL purchase without membership allowed';
