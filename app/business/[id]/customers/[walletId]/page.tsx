@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { MdArrowBack, MdAutoAwesome, MdCampaign, MdHistory, MdLocalActivity, MdRedeem, MdShoppingBag, MdStar, MdStyle } from "react-icons/md";
+import { MdArrowBack, MdAutoAwesome, MdCampaign, MdFileDownload, MdHistory, MdLocalActivity, MdRedeem, MdShoppingBag, MdStar, MdStyle } from "react-icons/md";
 import AuthGuard from "@/components/auth/AuthGuard";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getBusinessAccess } from "@/lib/business-data";
 import { getBusinessCustomerDetail, getBusinessCustomerTimeline, type CustomerDetail, type CustomerTimelineEvent } from "@/lib/commerce-v2";
 import { friendlyError } from "@/lib/errors";
+import { downloadCsv, safeFilename } from "@/lib/csv";
 import { formatMoney } from "@/lib/pilot-data";
 
 const segmentLabel = { new: "Nuevo", active: "Activo", loyal: "Fiel", at_risk: "En riesgo" } as const;
@@ -25,6 +26,7 @@ function CustomerDetailContent() {
   const businessId = params.id;
   const walletId = params.walletId;
   const [businessName, setBusinessName] = useState("");
+  const [canExport, setCanExport] = useState(false);
   const [customer, setCustomer] = useState<CustomerDetail | null>(null);
   const [timeline, setTimeline] = useState<CustomerTimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +40,7 @@ function CustomerDetailContent() {
         if (!active) return;
         if (!access) throw new Error("No tienes acceso a este negocio.");
         setBusinessName(access.business.name);
+        setCanExport(access.role === "owner" || access.role === "manager");
         setCustomer(detail);
         setTimeline(events);
       })
@@ -55,7 +58,7 @@ function CustomerDetailContent() {
     <main className="bonoa-shell min-h-screen pb-24">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3"><Link href={`/business/${businessId}/customers`} className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/5 text-zinc-300"><MdArrowBack size={20} /></Link><div><p className="text-[10px] font-black uppercase tracking-[0.22em] text-orange-300">{businessName || "Bonoa Business"}</p><h1 className="mt-1 font-mono text-2xl font-black text-white">{customer.customer_code}</h1></div></div>
-        <div className="flex gap-2"><Link href={`/business/${businessId}/engage`} className="brand-gradient inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-black text-white"><MdLocalActivity size={17} /> Registrar actividad</Link><Link href={`/business/${businessId}/scan`} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-black text-zinc-200"><MdRedeem size={17} /> Bonos</Link></div>
+        <div className="flex flex-wrap gap-2">{canExport ? <button type="button" disabled={!timeline.length} onClick={() => downloadCsv(`${safeFilename(businessName)}-${safeFilename(customer.customer_code)}-ultimas-operaciones.csv`, ["Referencia", "Fecha", "Tipo", "Detalle", "Importe EUR", "Unidades"], timeline.map(event => [event.reference_code, event.occurred_at, event.title, event.detail, (event.amount_cents / 100).toFixed(2).replace(".", ","), event.units]), ";")} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-zinc-200 disabled:opacity-40"><MdFileDownload size={17} /> Exportar últimas operaciones</button> : null}<Link href={`/business/${businessId}/engage`} className="brand-gradient inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-black text-white"><MdLocalActivity size={17} /> Registrar actividad</Link><Link href={`/business/${businessId}/scan`} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-black text-zinc-200"><MdRedeem size={17} /> Bonos</Link></div>
       </header>
 
       {error ? <div className="mt-5 rounded-2xl border border-red-400/15 bg-red-400/5 p-4 text-xs text-red-200">{error}</div> : null}
