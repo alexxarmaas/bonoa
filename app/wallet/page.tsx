@@ -7,6 +7,7 @@ import AuthGuard from "@/components/auth/AuthGuard";
 import { useAuth } from "@/components/auth/AuthProvider";
 import BonoaLogo from "@/components/brand/BonoaLogo";
 import MembershipCard from "@/components/MembershipCard";
+import InstallBonoa from "@/components/InstallBonoa";
 import ClubJoinRequests from "@/components/ClubJoinRequests";
 import PassCard from "@/components/PassCard";
 import { friendlyError } from "@/lib/errors";
@@ -116,6 +117,7 @@ function WalletContent() {
             <Link href="/qr" className="brand-gradient inline-flex items-center gap-2 rounded-full px-5 py-3 text-xs font-black text-white shadow-[0_16px_36px_rgba(37,99,235,.2)]"><MdQrCode2 size={19} /> Mostrar mi QR</Link>
             <Link href="#carnets" className="inline-flex items-center gap-2 rounded-full border border-[#cbdcf2] bg-white px-5 py-3 text-xs font-bold text-[#334155] shadow-sm transition hover:border-[#93c5fd] hover:bg-[#f8fbff]">Ver mis carnets <MdArrowForward size={16} /></Link>
           </div>
+          <InstallBonoa />
         </div>
 
         <div className="grid grid-cols-3 gap-3 lg:grid-cols-1">
