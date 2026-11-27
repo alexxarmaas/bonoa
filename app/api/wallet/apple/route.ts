@@ -14,6 +14,9 @@ type Membership = {
 };
 
 export async function POST(request: NextRequest) {
+  if (process.env.BONOA_NATIVE_WALLETS_ENABLED !== "true") {
+    return NextResponse.json({ error: "native_wallet_disabled" }, { status: 503 });
+  }
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   const signerUrl = process.env.APPLE_WALLET_SIGNER_URL;

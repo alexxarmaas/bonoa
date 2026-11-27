@@ -10,6 +10,7 @@ import QrScanner from "@/components/business/QrScanner";
 import { getBusinessAccess, parseBonoaQr, type BonoaQrIdentity } from "@/lib/business-data";
 import { getBusinessWalletSnapshot, type CustomerDetail } from "@/lib/commerce-v2";
 import { friendlyError } from "@/lib/errors";
+import { requestClubJoinByQr } from "@/lib/club-join";
 import { registerLoyaltyEvent, type LoyaltyEventType } from "@/lib/loyalty-growth";
 
 type Access = Awaited<ReturnType<typeof getBusinessAccess>>;
@@ -28,6 +29,7 @@ function EngageContent() {
   const [qr, setQr] = useState<BonoaQrIdentity | null>(null);
   const [snapshot, setSnapshot] = useState<CustomerDetail | null>(null);
   const [snapshotLoading, setSnapshotLoading] = useState(false);
+  const [joinStatus, setJoinStatus] = useState<"checking" | "pending" | "member" | "declined" | "error" | null>(null);
   const [rawCode, setRawCode] = useState("");
   const [purchaseAmount, setPurchaseAmount] = useState("");
   const [busy, setBusy] = useState<LoyaltyEventType | null>(null);
@@ -66,6 +68,18 @@ function EngageContent() {
     }
   }, [businessId]);
 
+  const checkClub = useCallback(async (identity: BonoaQrIdentity) => {
+    setJoinStatus("checking");
+    try {
+      const status = await requestClubJoinByQr(businessId, identity);
+      setJoinStatus(status === "already_member" ? "member" : status);
+      if (status === "already_member") void loadSnapshot(identity);
+    } catch (cause) {
+      setJoinStatus("error");
+      setError(friendlyError(cause, "No se pudo comprobar si el cliente pertenece al club."));
+    }
+  }, [businessId, loadSnapshot]);
+
   const acceptCode = useCallback((value: string) => {
     setRawCode(value);
     setError(null);
@@ -78,9 +92,9 @@ function EngageContent() {
     pendingRef.current = null;
     setQr(identity);
     setSnapshot(null);
-    void loadSnapshot(identity);
+    void checkClub(identity);
     vibrate([30, 40, 30]);
-  }, [loadSnapshot]);
+  }, [checkClub]);
 
   const submitManual = (event: FormEvent) => {
     event.preventDefault();
@@ -92,6 +106,7 @@ function EngageContent() {
     pendingRef.current = null;
     setQr(null);
     setSnapshot(null);
+    setJoinStatus(null);
     setRawCode("");
     setPurchaseAmount("");
     setBusy(null);
@@ -101,7 +116,7 @@ function EngageContent() {
   };
 
   const recordEvent = async (type: LoyaltyEventType) => {
-    if (!qr || busy) return;
+    if (!qr || busy || joinStatus !== "member") return;
     const euros = purchaseAmount.trim() ? Number(purchaseAmount.replace(",", ".")) : 0;
     if (type === "purchase" && (!Number.isFinite(euros) || euros < 0 || euros > 1_000_000)) {
       setError("Introduce un importe válido entre 0 € y 1.000.000 €.");
@@ -140,6 +155,7 @@ function EngageContent() {
   if (!access) return <main className="bonoa-shell"><Link href="/business" className="text-xs font-bold text-orange-300">← Volver</Link><div className="mt-8 rounded-[2rem] border border-red-400/15 bg-red-400/5 p-8 text-center text-sm text-red-200">No tienes acceso a este negocio.</div></main>;
 
   const activePasses = snapshot?.passes.filter((pass) => pass.status === "active" && Number(pass.remaining_units) > 0) ?? [];
+  const canRecord = joinStatus === "member";
 
   return (
     <main className="bonoa-shell min-h-screen pb-24">
@@ -158,9 +174,24 @@ function EngageContent() {
 
         {!qr ? <div className="grid min-h-[30rem] place-items-center rounded-[2rem] border border-dashed border-white/10 p-8 text-center"><div><MdQrCode2 size={42} className="mx-auto text-zinc-700" /><p className="mt-4 text-sm font-bold text-white">Listo para el siguiente cliente</p><p className="mt-2 max-w-sm text-xs leading-5 text-zinc-600">Escanea su QR universal para abrir su contexto en {access.business.name}.</p></div></div> : <div className="space-y-4">
           <div className="bonoa-card rounded-[1.6rem] p-5">
-            <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-orange-300">Cliente detectado</p><p className="mt-2 font-mono text-lg font-black text-white">{snapshot?.customer_code ?? (snapshotLoading ? "Cargando relación…" : "Nuevo cliente")}</p>{snapshot ? <p className="mt-1 text-[10px] text-zinc-500">{snapshot.purchases} compras · {snapshot.visits} visitas · {snapshot.rewards_earned} premios</p> : !snapshotLoading ? <p className="mt-1 text-[10px] text-zinc-500">Su primera actividad creará automáticamente el carnet.</p> : null}</div><div className="flex gap-2"><span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-300"><MdCheckCircle size={14} /> QR válido</span><button type="button" onClick={resetCustomer} disabled={Boolean(busy)} className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-bold text-zinc-400 disabled:opacity-40"><MdClose size={14} /> Terminar</button></div></div>
+            <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-orange-300">Cliente detectado</p><p className="mt-2 font-mono text-lg font-black text-white">{snapshot?.customer_code ?? (snapshotLoading || joinStatus === "checking" ? "Comprobando cliente…" : "Nuevo cliente")}</p>{snapshot ? <p className="mt-1 text-[10px] text-zinc-500">{snapshot.purchases} compras · {snapshot.visits} visitas · {snapshot.rewards_earned} premios</p> : !snapshotLoading ? <p className="mt-1 text-[10px] text-zinc-500">Para incorporarse al club, el cliente debe aceptar la invitación desde su wallet.</p> : null}</div><div className="flex gap-2"><span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-300"><MdCheckCircle size={14} /> QR válido</span><button type="button" onClick={resetCustomer} disabled={Boolean(busy)} className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-bold text-zinc-400 disabled:opacity-40"><MdClose size={14} /> Terminar</button></div></div>
             {snapshot ? <Link href={`/business/${businessId}/customers/${snapshot.wallet_id}`} className="mt-4 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-orange-200">Abrir ficha completa <MdArrowForward size={15} /></Link> : null}
           </div>
+
+          {joinStatus && joinStatus !== "member" ? (
+            <section className="rounded-[1.5rem] border border-orange-400/20 bg-orange-400/[0.06] p-5" aria-live="polite">
+              <p className="text-sm font-black text-orange-100">
+                {joinStatus === "checking" ? "Comprobando si ya es socio…" : joinStatus === "pending" ? "Invitación enviada al cliente" : joinStatus === "declined" ? "El cliente ha rechazado la invitación" : "No se ha podido comprobar el alta"}
+              </p>
+              <p className="mt-2 text-xs leading-5 text-zinc-400">
+                {joinStatus === "pending" ? "Pídele que abra Mi QR o la wallet en Bonoa y pulse «Unirme al club». La invitación caduca a los 20 minutos." : "No se pueden registrar compras ni visitas hasta que se confirme que pertenece al club."}
+              </p>
+              <button type="button" onClick={() => qr && void checkClub(qr)} disabled={joinStatus === "checking"}
+                className="mt-4 inline-flex items-center gap-2 rounded-full border border-orange-400/30 bg-orange-400/10 px-4 py-2.5 text-xs font-black text-orange-100 disabled:opacity-40">
+                <MdRefresh size={17} /> Comprobar aceptación
+              </button>
+            </section>
+          ) : null}
 
           {snapshot && (snapshot.progress.length || activePasses.length) ? <section className="grid gap-3 lg:grid-cols-2">
             <div className="rounded-[1.6rem] border border-white/8 bg-white/[0.025] p-5"><div className="flex items-center gap-2"><MdStar className="text-amber-200" /><p className="text-xs font-black text-white">Objetivos</p></div><div className="mt-3 space-y-2">{snapshot.progress.length ? snapshot.progress.slice(0, 4).map((rule) => { const progress = rule.metric_value % Math.max(1, rule.threshold_value); return <div key={rule.rule_id} className="rounded-2xl border border-white/8 bg-black/20 p-3"><p className="text-[11px] font-black text-white">{rule.rule_name}</p><p className="mt-1 text-[10px] text-zinc-500">{progress} / {rule.threshold_value} · 🎁 {rule.reward_product_name}</p></div>; }) : <p className="text-[10px] text-zinc-600">Sin objetivos activos.</p>}</div></div>
@@ -168,8 +199,8 @@ function EngageContent() {
           </section> : null}
 
           <section className="grid gap-4 md:grid-cols-2">
-            <article className="bonoa-card rounded-[1.7rem] p-5 sm:p-6"><div className="flex items-center gap-3"><div className="grid h-11 w-11 place-items-center rounded-2xl border border-orange-400/15 bg-orange-400/[0.07] text-orange-300"><MdShoppingBag size={22} /></div><div><p className="text-sm font-black text-white">+ Compra</p><p className="mt-1 text-[10px] text-zinc-600">Cuenta para compras y gasto.</p></div></div><label className="mt-5 block text-xs font-bold text-zinc-400">Importe <span className="font-normal text-zinc-600">(opcional)</span><div className="relative mt-2"><MdEuro className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600" size={17} /><input inputMode="decimal" value={purchaseAmount} onChange={(event) => { pendingRef.current = null; setPurchaseAmount(event.target.value); }} placeholder="0,00" className="w-full rounded-2xl border border-white/10 bg-black/30 py-3 pl-10 pr-4 text-sm text-white outline-none focus:border-orange-400/40" /></div></label><button type="button" onClick={() => void recordEvent("purchase")} disabled={Boolean(busy)} className="brand-gradient mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full px-5 py-3 text-xs font-black text-white disabled:opacity-40"><MdShoppingBag size={18} /> {busy === "purchase" ? "Registrando…" : "Registrar compra"}</button></article>
-            <article className="bonoa-card rounded-[1.7rem] p-5 sm:p-6"><div className="flex items-center gap-3"><div className="grid h-11 w-11 place-items-center rounded-2xl border border-sky-400/15 bg-sky-400/[0.07] text-sky-300"><MdLocalActivity size={22} /></div><div><p className="text-sm font-black text-white">+ Visita</p><p className="mt-1 text-[10px] text-zinc-600">Sin ticket ni importe.</p></div></div><div className="mt-5 rounded-2xl border border-white/8 bg-black/20 p-4 text-xs leading-5 text-zinc-500">Bonoa comprueba automáticamente si esa visita completa algún objetivo.</div><button type="button" onClick={() => void recordEvent("visit")} disabled={Boolean(busy)} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full border border-sky-400/20 bg-sky-400/10 px-5 py-3 text-xs font-black text-sky-100 disabled:opacity-40"><MdLocalActivity size={18} /> {busy === "visit" ? "Registrando…" : "Registrar visita"}</button></article>
+            <article className="bonoa-card rounded-[1.7rem] p-5 sm:p-6"><div className="flex items-center gap-3"><div className="grid h-11 w-11 place-items-center rounded-2xl border border-orange-400/15 bg-orange-400/[0.07] text-orange-300"><MdShoppingBag size={22} /></div><div><p className="text-sm font-black text-white">+ Compra</p><p className="mt-1 text-[10px] text-zinc-600">Cuenta para compras y gasto.</p></div></div><label className="mt-5 block text-xs font-bold text-zinc-400">Importe <span className="font-normal text-zinc-600">(opcional)</span><div className="relative mt-2"><MdEuro className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600" size={17} /><input inputMode="decimal" value={purchaseAmount} onChange={(event) => { pendingRef.current = null; setPurchaseAmount(event.target.value); }} placeholder="0,00" className="w-full rounded-2xl border border-white/10 bg-black/30 py-3 pl-10 pr-4 text-sm text-white outline-none focus:border-orange-400/40" /></div></label><button type="button" onClick={() => void recordEvent("purchase")} disabled={Boolean(busy) || !canRecord} className="brand-gradient mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full px-5 py-3 text-xs font-black text-white disabled:opacity-40"><MdShoppingBag size={18} /> {busy === "purchase" ? "Registrando…" : "Registrar compra"}</button></article>
+            <article className="bonoa-card rounded-[1.7rem] p-5 sm:p-6"><div className="flex items-center gap-3"><div className="grid h-11 w-11 place-items-center rounded-2xl border border-sky-400/15 bg-sky-400/[0.07] text-sky-300"><MdLocalActivity size={22} /></div><div><p className="text-sm font-black text-white">+ Visita</p><p className="mt-1 text-[10px] text-zinc-600">Sin ticket ni importe.</p></div></div><div className="mt-5 rounded-2xl border border-white/8 bg-black/20 p-4 text-xs leading-5 text-zinc-500">Bonoa comprueba automáticamente si esa visita completa algún objetivo.</div><button type="button" onClick={() => void recordEvent("visit")} disabled={Boolean(busy) || !canRecord} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full border border-sky-400/20 bg-sky-400/10 px-5 py-3 text-xs font-black text-sky-100 disabled:opacity-40"><MdLocalActivity size={18} /> {busy === "visit" ? "Registrando…" : "Registrar visita"}</button></article>
           </section>
           <div className="flex items-center gap-2 rounded-2xl border border-white/8 bg-white/[0.02] p-4 text-[11px] leading-5 text-zinc-600"><MdRefresh size={17} className="shrink-0 text-zinc-500" /> Doble toque, reintento o dos registros idénticos seguidos quedan protegidos por idempotencia + antifraude.</div>
         </div>}

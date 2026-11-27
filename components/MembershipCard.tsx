@@ -65,44 +65,71 @@ function RuleProgress({ rule, accent }: { rule: MembershipRuleProgress; accent: 
 }
 
 export default function MembershipCard({ membership, rules }: { membership: WalletMembership; rules: MembershipRuleProgress[] }) {
-  const accent = membership.business_accent_color || "#2563eb";
+  const accent = /^#[0-9a-fA-F]{6}$/.test(membership.business_accent_color || "") ? membership.business_accent_color : "#2563eb";
   const clubName = membership.club_name || `Club ${membership.business_name}`;
   const badge = membership.membership_badge_label || membershipSegmentLabel(membership.segment).toUpperCase();
+  const coverUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/business-assets/${membership.business_id}/club-cover` : null;
+  const primaryRule = rules.find((rule) => !rule.completed) ?? rules[0];
+  const percent = primaryRule ? Math.min(100, Math.round((Math.max(0, primaryRule.progress_value) / Math.max(1, primaryRule.threshold_value)) * 100)) : 0;
 
   return (
-    <article className="relative overflow-hidden rounded-[2rem] border border-[#dbe7f5] bg-white shadow-[0_24px_70px_rgba(15,23,42,.08)]">
-      <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full blur-3xl" style={{ backgroundColor: `${accent}18` }} />
-      <div className="absolute inset-x-0 top-0 h-1.5" style={{ background: `linear-gradient(90deg, ${accent}, #06b6d4)` }} />
-      <div className="relative p-5 sm:p-6">
-        <div className="flex items-start justify-between gap-4">
+    <article className="group overflow-hidden rounded-[2rem] border border-[#dbe7f5] bg-white shadow-[0_22px_55px_rgba(15,23,42,.1)] transition-shadow hover:shadow-[0_28px_70px_rgba(15,23,42,.16)]">
+      <div className="relative isolate flex min-h-[255px] flex-col justify-between overflow-hidden rounded-[1.7rem] p-6 text-white sm:min-h-[285px] sm:p-7" style={{ background: `linear-gradient(125deg, #101827 0%, ${accent} 110%)` }}>
+        {coverUrl ? <img src={coverUrl} alt="" aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 h-full w-full object-cover opacity-65" onError={(event) => { event.currentTarget.style.display = "none"; }} /> : null}
+        {membership.business_logo_url ? (
+          <img src={membership.business_logo_url} alt="" aria-hidden="true" className="pointer-events-none absolute -right-12 -top-12 -z-10 h-[125%] w-[85%] rotate-[-12deg] object-contain opacity-20 blur-[3px]" />
+        ) : null}
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-t from-black/80 via-black/25 to-black/40" />
+        <div className="pointer-events-none absolute -right-20 bottom-[-7rem] -z-10 h-72 w-72 rounded-full bg-white/15 blur-3xl" />
+        <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-[1.15rem] border bg-[#f8fbff]" style={{ borderColor: `${accent}35` }}>
-              {membership.business_logo_url ? <img src={membership.business_logo_url} alt="" className="h-full w-full object-contain p-1.5" /> : <MdCardMembership size={27} style={{ color: accent }} />}
+            <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl border border-white/30 bg-white/90 shadow-lg">
+              {membership.business_logo_url ? <img src={membership.business_logo_url} alt={`Logo de ${membership.business_name}`} className="h-full w-full object-contain p-1.5" /> : <MdCardMembership size={29} style={{ color: accent }} />}
             </div>
             <div className="min-w-0">
-              <p className="text-[9px] font-black uppercase tracking-[0.22em]" style={{ color: accent }}>{membership.business_name}</p>
-              <p className="mt-1 truncate text-xl font-black text-[#0f172a]">{clubName}</p>
-              <p className="mt-1 text-[10px] text-[#64748b]">Socio desde {new Date(membership.joined_at).toLocaleDateString("es-ES", { month: "long", year: "numeric" })}</p>
+              <p className="truncate text-[10px] font-bold uppercase tracking-[0.18em] text-white/75">{membership.business_name}</p>
+              <h3 className="mt-1 truncate text-xl font-black tracking-tight sm:text-2xl">{clubName}</h3>
             </div>
           </div>
-          <span className="shrink-0 rounded-full border px-3 py-1.5 text-[9px] font-black uppercase tracking-[0.14em]" style={{ borderColor: `${accent}35`, backgroundColor: `${accent}10`, color: accent }}><MdWorkspacePremium className="mr-1 inline" size={13} /> {badge}</span>
+          <span className="shrink-0 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 text-[9px] font-black uppercase tracking-wider backdrop-blur-sm"><MdWorkspacePremium className="mr-1 inline" size={13} />{badge}</span>
         </div>
-
-        {membership.club_message ? <p className="mt-5 max-w-xl text-xs leading-5 text-[#475569]">{membership.club_message}</p> : null}
-
-        <div className="mt-5 grid grid-cols-3 gap-2">
-          <div className="rounded-2xl border border-[#e2e8f0] bg-[#f8fbff] p-3"><MdShoppingBag style={{ color: accent }} size={16} /><p className="mt-2 text-xl font-black text-[#0f172a]">{membership.purchases}</p><p className="text-[9px] uppercase tracking-[0.12em] text-[#64748b]">Compras</p></div>
-          <div className="rounded-2xl border border-[#e2e8f0] bg-[#f8fbff] p-3"><MdCardMembership className="text-[#0ea5e9]" size={16} /><p className="mt-2 text-xl font-black text-[#0f172a]">{membership.visits}</p><p className="text-[9px] uppercase tracking-[0.12em] text-[#64748b]">Visitas</p></div>
-          <div className="rounded-2xl border border-[#e2e8f0] bg-[#f8fbff] p-3"><MdEmojiEvents className="text-[#06b6d4]" size={16} /><p className="mt-2 text-xl font-black text-[#0f172a]">{membership.rewards_earned}</p><p className="text-[9px] uppercase tracking-[0.12em] text-[#64748b]">Premios</p></div>
-        </div>
-
-        <div className="mt-4 space-y-3">{rules.length ? rules.map((rule) => <RuleProgress key={rule.rule_id} rule={rule} accent={accent} />) : <div className="rounded-2xl border border-dashed border-[#cbd5e1] bg-[#f8fbff] p-4 text-xs leading-5 text-[#64748b]">Tu carnet está activo. Cuando este comercio añada un objetivo, tu progreso aparecerá aquí automáticamente.</div>}</div>
-
-        <div className="mt-5 flex flex-wrap items-end justify-between gap-3 border-t border-[#e2e8f0] pt-4">
-          <ReferralShareButton businessId={membership.business_id} businessName={membership.business_name} />
-          <DigitalWalletButtons membershipId={membership.membership_id} />
+        <div className="mt-12">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/70">Tu carnet de socio</p>
+          {primaryRule ? (
+            <>
+              <div className="mt-2 flex items-end justify-between gap-2">
+                <p className="max-w-[75%] text-sm font-bold leading-5">{primaryRule.rule_name}</p>
+                <p className="text-xl font-black tabular-nums">{primaryRule.progress_value}<span className="text-sm text-white/65"> / {primaryRule.threshold_value}</span></p>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/25"><div className="h-full rounded-full bg-white transition-all" style={{ width: `${percent}%` }} /></div>
+            </>
+          ) : <p className="mt-2 text-sm font-semibold text-white/90">{membership.club_message || "Tus visitas y compras, siempre contigo."}</p>}
+          <div className="mt-4 flex items-center justify-between text-[10px] font-semibold text-white/75">
+            <span>Socio desde {new Date(membership.joined_at).toLocaleDateString("es-ES", { month: "short", year: "numeric" })}</span>
+            <span>{membership.rewards_earned} premio{membership.rewards_earned === 1 ? "" : "s"}</span>
+          </div>
         </div>
       </div>
+
+      <details className="group/details">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-6 py-4 text-xs font-black text-[#0f172a] marker:hidden [&::-webkit-details-marker]:hidden">
+          <span>Ver detalles y beneficios</span>
+          <span className="text-lg text-[#64748b] transition-transform group-open/details:rotate-180" aria-hidden="true">⌄</span>
+        </summary>
+        <div className="border-t border-[#e2e8f0] px-5 pb-5 pt-4 sm:px-6">
+          {membership.club_message ? <p className="mb-4 text-xs leading-5 text-[#475569]">{membership.club_message}</p> : null}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-xl bg-[#f8fbff] p-3"><MdShoppingBag style={{ color: accent }} size={16} /><p className="mt-1 text-xl font-black text-[#0f172a]">{membership.purchases}</p><p className="text-[10px] text-[#64748b]">Compras</p></div>
+            <div className="rounded-xl bg-[#f8fbff] p-3"><MdCardMembership style={{ color: accent }} size={16} /><p className="mt-1 text-xl font-black text-[#0f172a]">{membership.visits}</p><p className="text-[10px] text-[#64748b]">Visitas</p></div>
+            <div className="rounded-xl bg-[#f8fbff] p-3"><MdEmojiEvents style={{ color: accent }} size={16} /><p className="mt-1 text-xl font-black text-[#0f172a]">{membership.rewards_earned}</p><p className="text-[10px] text-[#64748b]">Premios</p></div>
+          </div>
+          <div className="mt-4 space-y-3">{rules.length ? rules.map((rule) => <RuleProgress key={rule.rule_id} rule={rule} accent={accent} />) : <p className="rounded-xl bg-[#f8fbff] p-4 text-xs text-[#64748b]">Tu carnet está activo. Los objetivos aparecerán aquí cuando el negocio los configure.</p>}</div>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#e2e8f0] pt-4">
+            <ReferralShareButton businessId={membership.business_id} businessName={membership.business_name} />
+            <DigitalWalletButtons membershipId={membership.membership_id} />
+          </div>
+        </div>
+      </details>
     </article>
   );
 }
