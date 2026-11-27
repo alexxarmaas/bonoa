@@ -51,6 +51,7 @@ function describe(event: BusinessAuditEvent) {
   if (event.event_type === "campaign_created" && "name" in meta) return `Campaña “${String(meta.name)}” preparada para compartir`;
   if (event.event_type === "campaign_updated" && "active" in meta) return meta.active === true ? "Campaña reactivada" : "Campaña pausada";
   if (event.event_type === "campaign_claimed" && "campaign_name" in meta) return `Un cliente reclamó “${String(meta.campaign_name)}”`;
+  if (event.event_type === "loyalty_event_recorded" && meta.action === "purchase_amount_corrected") return `Compra rectificada · ${money(meta.previous_amount_cents)} → ${money(meta.amount_cents)} · ${String(meta.reason ?? "")}`;
   if (event.event_type === "loyalty_event_recorded") {
     const type = String(meta.loyalty_event_type ?? "actividad");
     const rewards = Number(meta.rewards_issued ?? 0);
