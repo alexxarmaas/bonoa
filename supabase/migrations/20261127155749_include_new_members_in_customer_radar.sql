@@ -37,4 +37,4 @@ begin
     greatest(0,floor(extract(epoch from(now()-c.last_activity))/86400))::integer
   from combined c order by case when(c.purchases+c.visits+c.redemptions)>0 and c.last_activity<now()-interval '45 days' then 0 when c.purchases>=5 or c.visits>=8 or c.redemptions>=5 or c.rewards_earned>=2 then 1 when c.first_seen>=now()-interval '30 days' then 2 else 3 end,c.last_activity desc;
 end;
-$function$
+$function$;
