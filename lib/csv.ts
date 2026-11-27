@@ -1,18 +1,22 @@
 export type CsvCell = string | number | boolean | null | undefined;
 
-function escapeCell(value: CsvCell) {
+export function escapeCsvCell(value: CsvCell, delimiter = ",") {
   if (value === null || value === undefined) return "";
-  const text = String(value);
-  if (/[",\n\r]/.test(text)) return `"${text.replace(/"/g, '""')}"`;
+  const raw = String(value);
+  // Spreadsheet formula injection protection for user-supplied text.
+  const text = typeof value === "string" && (/^[\t\r\n]/.test(raw) || /^[\s\u0000-\u001f]*[=+\-@]/.test(raw)) ? "'" + raw : raw;
+  if (text.includes(delimiter) || /["\n\r]/.test(text)) return '"' + text.replace(/"/g, '""') + '"';
   return text;
 }
 
-export function downloadCsv(filename: string, headers: string[], rows: CsvCell[][]) {
-  const content = [headers, ...rows]
-    .map((row) => row.map(escapeCell).join(","))
-    .join("\r\n");
+export function buildCsv(headers: string[], rows: CsvCell[][], delimiter = ",") {
+  return "\uFEFF" + [headers, ...rows]
+    .map((row) => row.map((cell) => escapeCsvCell(cell, delimiter)).join(delimiter))
+    .join("\r\n") + "\r\n";
+}
 
-  const blob = new Blob(["\uFEFF", content], { type: "text/csv;charset=utf-8" });
+export function downloadCsv(filename: string, headers: string[], rows: CsvCell[][], delimiter = ",") {
+  const blob = new Blob([buildCsv(headers, rows, delimiter)], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
@@ -20,7 +24,7 @@ export function downloadCsv(filename: string, headers: string[], rows: CsvCell[]
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export function safeFilename(value: string) {
