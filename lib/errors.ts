@@ -35,6 +35,7 @@ export function friendlyError(cause: unknown, fallback = "Ha ocurrido un error. 
     ["loyalty_products_sale_price_upper_check", "El precio indicado es demasiado alto."],
     ["duplicate key value", "Ya existe un registro con esos datos."],
     ["wallet qr is invalid or expired", "Ese QR ya no es válido. Pide al cliente que abra su QR actual."],
+    ["club_membership_required", "El cliente debe aceptar la invitación al club antes de registrar compras o visitas."],
     ["wallet_not_found", "No encontramos la wallet asociada a esta cuenta."],
     ["wallet not found", "No encontramos la wallet asociada a esta cuenta."],
     ["active product not found", "Ese tipo de bono ya no está disponible."],
