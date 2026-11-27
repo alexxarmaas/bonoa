@@ -1,5 +1,8 @@
 name: Pilot lockfile repair
 on:
+  push:
+    branches: [fix/web-only-pilot-release]
+    paths: [.github/workflows/pilot-lockfile-repair.yml]
   pull_request:
     branches: [develop]
     paths: [.github/workflows/pilot-lockfile-repair.yml]
@@ -7,7 +10,7 @@ permissions:
   contents: read
 jobs:
   regenerate:
-    if: github.head_ref == 'fix/web-only-pilot-release' && github.event.pull_request.head.repo.full_name == github.repository
+    if: github.ref == 'refs/heads/fix/web-only-pilot-release' || (github.head_ref == 'fix/web-only-pilot-release' && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
