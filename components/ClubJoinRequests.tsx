@@ -26,11 +26,14 @@ export default function ClubJoinRequests({ userId, onApproved, dark = false }: P
 
   useEffect(() => {
     if (!userId) return;
-    void reload();
+    const initial = window.setTimeout(() => { void reload(); }, 0);
     const interval = window.setInterval(() => {
       if (document.visibilityState === "visible") void reload();
     }, 6000);
-    return () => window.clearInterval(interval);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(interval);
+    };
   }, [reload, userId]);
 
   const answer = async (request: ClubJoinRequest, accept: boolean) => {
