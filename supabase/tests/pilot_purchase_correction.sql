@@ -85,6 +85,25 @@ begin
   select * into event_result from public.register_loyalty_event(b,token,version,'purchase',4900,gen_random_uuid());
   if event_result.rewards_issued <> 0 then raise exception 'FAIL unqualified purchase rewarded'; end if;
   low_purchase_id := event_result.event_id;
+  execute 'reset role';
+  perform set_config('request.jwt.claim.sub',other_id::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',other_id,'role','authenticated')::text,true);
+  execute 'set local role authenticated';
+  begin
+   perform public.correct_purchase_amount(b,low_purchase_id,4900,4000,'QA tenant denial');
+   raise exception 'FAIL cross-tenant correction allowed';
+  exception when others then if sqlerrm <> 'not_authorized' then raise; end if; end;
+  execute 'reset role';
+  insert into public.business_members(business_id,user_id,role) values(b,other_id,'staff');
+  execute 'set local role authenticated';
+  begin
+   perform public.correct_purchase_amount(b,low_purchase_id,4900,4000,'QA staff denial');
+   raise exception 'FAIL staff correction allowed';
+  exception when others then if sqlerrm <> 'not_authorized' then raise; end if; end;
+  execute 'reset role';
+  perform set_config('request.jwt.claim.sub',owner_id::text,true);
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',owner_id,'role','authenticated')::text,true);
+  execute 'set local role authenticated';
   corrected := public.correct_purchase_amount(b,low_purchase_id,4900,4000,'QA amount correction');
   if (corrected->>'amount_cents')::bigint <> 4000 then raise exception 'FAIL correction amount'; end if;
   begin
