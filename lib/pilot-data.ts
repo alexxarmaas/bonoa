@@ -148,6 +148,16 @@ export async function updatePilotBusiness(businessId: string, input: BusinessPro
   return data as PilotBusiness;
 }
 
+export async function uploadBusinessClubCover(businessId: string, file: File): Promise<string> {
+  if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) throw new Error("La portada debe ser PNG, JPG o WEBP.");
+  if (!file.size || file.size > 4 * 1024 * 1024) throw new Error("La portada debe pesar entre 1 byte y 4 MB.");
+  const path = `${businessId}/club-cover`;
+  const { error } = await supabase.storage.from("business-assets").upload(path, file, { upsert: true, contentType: file.type, cacheControl: "60" });
+  if (error) throw error;
+  const { data } = supabase.storage.from("business-assets").getPublicUrl(path);
+  return `${data.publicUrl}?v=${Date.now()}`;
+}
+
 export async function uploadBusinessLogo(businessId: string, file: File): Promise<string> {
   const allowed = new Map([["image/png", "png"], ["image/jpeg", "jpg"], ["image/webp", "webp"]]);
   const extension = allowed.get(file.type);

@@ -1,15 +1,15 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { MdArrowBack, MdCheckCircle, MdSave, MdWorkspacePremium } from "react-icons/md";
+import { MdArrowBack, MdCheckCircle, MdSave, MdUpload, MdWorkspacePremium } from "react-icons/md";
 import AuthGuard from "@/components/auth/AuthGuard";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getBusinessAccess } from "@/lib/business-data";
 import { updateBusinessClubProfile } from "@/lib/commerce-v2";
 import { friendlyError } from "@/lib/errors";
-import { getPilotBusiness } from "@/lib/pilot-data";
+import { getPilotBusiness, uploadBusinessClubCover } from "@/lib/pilot-data";
 
 type ClubBusiness = Awaited<ReturnType<typeof getPilotBusiness>> & {
   club_name?: string | null;
@@ -27,6 +27,8 @@ function ClubContent() {
   const [badge, setBadge] = useState("MIEMBRO");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -39,6 +41,7 @@ function ClubContent() {
         const next = value as ClubBusiness;
         setAllowed(access?.role === "owner" || access?.role === "manager");
         setBusiness(next);
+        setCoverUrl(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/business-assets/${businessId}/club-cover`);
         setClubName(next.club_name || `Club ${next.name}`);
         setClubMessage(next.club_message || "Gracias por volver. Cada visita cuenta.");
         setBadge(next.membership_badge_label || "MIEMBRO");
@@ -47,6 +50,18 @@ function ClubContent() {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [businessId, user]);
+
+  const onCoverChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !allowed) return;
+    setUploadingCover(true); setError(null); setSuccess(null);
+    try {
+      const url = await uploadBusinessClubCover(businessId, file);
+      setCoverUrl(url);
+      setSuccess("Portada actualizada. Los clientes la verán en su carnet.");
+    } catch (cause) { setError(friendlyError(cause, "No se pudo subir la portada.")); }
+    finally { setUploadingCover(false); event.target.value = ""; }
+  };
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -76,10 +91,11 @@ function ClubContent() {
             <label className="block text-xs font-bold text-zinc-400">Mensaje al socio<textarea disabled={!allowed} value={clubMessage} onChange={(e) => setClubMessage(e.target.value)} maxLength={240} rows={4} className="mt-2 w-full resize-none rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm leading-6 text-white outline-none focus:border-orange-400/40" /></label>
             <label className="block text-xs font-bold text-zinc-400">Etiqueta del carnet<input disabled={!allowed} value={badge} onChange={(e) => setBadge(e.target.value.toUpperCase())} maxLength={24} className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm font-black uppercase tracking-[.15em] text-white outline-none focus:border-orange-400/40" /></label>
           </div>
-          <button disabled={!allowed || saving} className="brand-gradient mt-6 inline-flex items-center gap-2 rounded-full px-5 py-3 text-xs font-black text-white disabled:opacity-40"><MdSave size={18}/>{saving ? "Guardando…" : "Guardar carnet"}</button>
+          <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4"><p className="text-xs font-black text-white">Fotografía de portada</p><p className="mt-1 text-[11px] text-zinc-400">PNG, JPG o WEBP, hasta 4 MB. Formato horizontal recomendado (16:9).</p><label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-full border border-white/15 px-4 py-2.5 text-xs font-bold text-white"><MdUpload size={17} />{uploadingCover ? "Subiendo…" : "Cambiar portada"}<input type="file" accept="image/png,image/jpeg,image/webp" disabled={!allowed || uploadingCover} onChange={(event) => void onCoverChange(event)} className="hidden" /></label></div>
+          <button disabled={!allowed || saving || uploadingCover} className="brand-gradient mt-6 inline-flex items-center gap-2 rounded-full px-5 py-3 text-xs font-black text-white disabled:opacity-40"><MdSave size={18}/>{saving ? "Guardando…" : "Guardar carnet"}</button>
         </form>
         <div className="rounded-[2rem] border border-white/10 p-1" style={{ background: `linear-gradient(135deg, ${business.accent_color || "#ff5a1f"}55, #111 55%, #050505)` }}>
-          <div className="flex min-h-[25rem] flex-col justify-between rounded-[1.8rem] bg-black/65 p-7 backdrop-blur-sm">
+          <div className="relative isolate flex min-h-[25rem] flex-col justify-between overflow-hidden rounded-[1.8rem] bg-black/65 p-7 backdrop-blur-sm">{coverUrl ? <img key={coverUrl} src={coverUrl} alt="" className="pointer-events-none absolute inset-0 -z-10 h-full w-full object-cover opacity-55" onError={(event) => { event.currentTarget.style.display = "none"; }} /> : null}<div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-t from-black/80 via-black/30 to-black/40" />
             <div className="flex items-start justify-between gap-4"><div className="flex items-center gap-3">{business.logo_url ? <img src={business.logo_url} alt="" className="h-14 w-14 rounded-2xl object-contain bg-white/5 p-2" /> : <div className="grid h-14 w-14 place-items-center rounded-2xl bg-white/5 text-orange-300"><MdWorkspacePremium size={27}/></div>}<div><p className="text-[10px] font-black uppercase tracking-[.18em] text-zinc-500">{business.name}</p><h2 className="mt-1 text-2xl font-black text-white">{clubName || `Club ${business.name}`}</h2></div></div><span className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[10px] font-black tracking-[.15em] text-white">{badge || "MIEMBRO"}</span></div>
             <div><p className="max-w-lg text-lg font-bold leading-7 text-white">{clubMessage || "Gracias por volver. Cada visita cuenta."}</p><div className="mt-6 grid grid-cols-3 gap-3"><div className="rounded-2xl bg-white/5 p-4"><p className="text-2xl font-black text-white">6</p><p className="mt-1 text-[9px] uppercase tracking-[.15em] text-zinc-500">Compras</p></div><div className="rounded-2xl bg-white/5 p-4"><p className="text-2xl font-black text-white">8</p><p className="mt-1 text-[9px] uppercase tracking-[.15em] text-zinc-500">Visitas</p></div><div className="rounded-2xl bg-white/5 p-4"><p className="text-2xl font-black text-white">1</p><p className="mt-1 text-[9px] uppercase tracking-[.15em] text-zinc-500">Premio</p></div></div></div>
             <p className="text-[10px] font-bold uppercase tracking-[.2em] text-zinc-600">Carnet permanente · Bonoa</p>

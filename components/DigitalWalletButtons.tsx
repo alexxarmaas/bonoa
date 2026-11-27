@@ -71,7 +71,7 @@ export default function DigitalWalletButtons({ membershipId }: { membershipId: s
   };
 
   if (!capabilities.google && !capabilities.apple) {
-    return <p className="mt-3 text-[10px] text-zinc-700">Wallet digital preparada; pendiente de credenciales de emisor.</p>;
+    return null;
   }
 
   return (

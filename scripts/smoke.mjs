@@ -1,5 +1,7 @@
 const baseUrl = (process.env.SMOKE_BASE_URL ?? "http://127.0.0.1:3000").replace(/\/$/, "");
 
+const nativeWalletsEnabled = process.env.SMOKE_NATIVE_WALLETS_ENABLED === "true";
+
 const checks = [
   { path: "/", status: 200 },
   { path: "/login", status: 200 },
@@ -28,12 +30,14 @@ const checks = [
       && value?.capabilities?.actionableBusinessDashboard === true
       && value?.capabilities?.loyaltyCampaigns === true
       && value?.capabilities?.automaticRewards === true
-      && value?.capabilities?.customerSegments === true,
+      && value?.capabilities?.customerSegments === true
+      && (nativeWalletsEnabled || (value?.capabilities?.googleWalletReady === false && value?.capabilities?.appleWalletReady === false)),
   },
   {
     path: "/api/wallet/capabilities",
     status: 200,
-    json: (value) => typeof value?.google === "boolean" && typeof value?.apple === "boolean",
+    json: (value) => typeof value?.google === "boolean" && typeof value?.apple === "boolean"
+      && (nativeWalletsEnabled || (!value.google && !value.apple)),
   },
   { path: "/__bonoa_missing_route__", status: 404 },
 ];
@@ -161,6 +165,24 @@ try {
 } catch (error) {
   console.error("FAIL canonical domain redirect:", error);
   failed = true;
+}
+
+if (!nativeWalletsEnabled) {
+  for (const provider of ["google", "apple"]) {
+    try {
+      const response = await fetch(`${baseUrl}/api/wallet/${provider}`, { method: "POST" });
+      const value = await response.json();
+      if (response.status !== 503 || value?.error !== "native_wallet_disabled") {
+        console.error(`FAIL native wallet disabled: ${provider} (${response.status})`);
+        failed = true;
+      } else {
+        console.log(`PASS native wallet disabled: ${provider}`);
+      }
+    } catch (error) {
+      console.error(`FAIL native wallet disabled: ${provider}`, error);
+      failed = true;
+    }
+  }
 }
 
 if (failed) process.exit(1);
