@@ -4,7 +4,7 @@ export function escapeCsvCell(value: CsvCell, delimiter = ",") {
   if (value === null || value === undefined) return "";
   const raw = String(value);
   // Spreadsheet formula injection protection for user-supplied text.
-  const text = typeof value === "string" && (/^[\t\r\n]/.test(raw) || /^[\s\u0000-\u001f]*[=+\-@]/.test(raw)) ? "'" + raw : raw;
+  const text = typeof value === "string" && ((raw.length > 0 && raw.charCodeAt(0) < 32) || /^[=+\-@]/.test(raw.trimStart())) ? "'" + raw : raw;
   if (text.includes(delimiter) || /["\n\r]/.test(text)) return '"' + text.replace(/"/g, '""') + '"';
   return text;
 }
